@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { assessmentQuestions } from "@/lib/data";
-import { AssessmentQuestion } from "@/lib/types";
+import type { AssessmentQuestion } from "@/lib/types";
 import { determineScenario, isAssessmentComplete } from "@/lib/utils/scenario";
 import { useBirthRegistration } from "./context";
 import { useState } from "react";

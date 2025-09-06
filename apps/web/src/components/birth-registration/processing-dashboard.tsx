@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useBirthRegistration } from "./context";
 import { agents } from "@/lib/data";
-import { Agent, AgentProcessingState, TimelineStep } from "@/lib/types";
+import type { Agent, AgentProcessingState, TimelineStep } from "@/lib/types";
 import { generateReferenceCode } from "@/lib/utils/scenario";
 import { useEffect, useState } from "react";
 

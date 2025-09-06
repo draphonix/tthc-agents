@@ -1,4 +1,4 @@
-import { Scenario, Agent, AssessmentQuestion } from "./types";
+import type { Scenario, Agent, AssessmentQuestion } from "./types";
 
 export const scenarios: Scenario[] = [
 	{

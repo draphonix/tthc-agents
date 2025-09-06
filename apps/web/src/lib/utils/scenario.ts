@@ -1,4 +1,4 @@
-import { AssessmentAnswers, Scenario } from "../types";
+import type { AssessmentAnswers, Scenario } from "../types";
 import { scenarios } from "../data";
 
 /**

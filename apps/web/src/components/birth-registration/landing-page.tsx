@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { scenarios, routingBenefits, complexityColors } from "@/lib/data";
-import { Scenario } from "@/lib/types";
+import type { Scenario } from "@/lib/types";
 import Image from "next/image";
 
 interface LandingPageProps {

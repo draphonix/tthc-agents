@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useBirthRegistration } from "./context";
 import { complexityColors } from "@/lib/data";
 import { useState, useRef } from "react";
-import { Document, UploadedFile } from "@/lib/types";
+import type { Document, UploadedFile } from "@/lib/types";
 
 export function DocumentSubmission() {
 	const { state, navigateTo, addUploadedDocument, removeUploadedDocument } = useBirthRegistration();
