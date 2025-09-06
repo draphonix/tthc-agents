@@ -67,3 +67,4 @@ tthc/
 - `bun check-types`: Check TypeScript types across all apps
 - `bun db:push`: Push schema changes to database
 - `bun db:studio`: Open database studio UI
+# tthc-agents
