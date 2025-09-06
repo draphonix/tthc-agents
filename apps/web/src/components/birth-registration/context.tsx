@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useReducer, type ReactNode } from "react";
-import { ApplicationState, ViewName, Scenario, AssessmentAnswers, UploadedFile, ProcessingState } from "@/lib/types";
+import type { ApplicationState, ViewName, Scenario, AssessmentAnswers, UploadedFile, ProcessingState } from "@/lib/types";
 
 // Initial state
 const initialProcessingState: ProcessingState = {
