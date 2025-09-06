@@ -8,6 +8,9 @@ import { MessageList } from "./message-list";
 import { MessageInput } from "./message-input";
 import { AgentStatusIndicator } from "./agent-status-indicator";
 import { ADKError } from "@/lib/adk/types";
+import { useDocumentProcessing } from "@/hooks/use-document-processing";
+import type { DocumentFile } from "./document-uploader";
+import { NetworkStatus } from "./network-status";
 import { toast } from "sonner";
 
 // Placeholder for user ID - in real app, this would come from auth
@@ -24,6 +27,44 @@ export function ADKChatInterface() {
 
   const adkClientRef = useRef<ADKClient | null>(null);
   const sessionHookRef = useRef<ADKSessionHook | null>(null);
+
+  // Document processing hook
+  const {
+    processingStatus,
+    isProcessing: isDocProcessing,
+    processFiles,
+    clearProcessingStatus,
+  } = useDocumentProcessing({
+    sessionId: currentSession?.id || '',
+    onFileComplete: (fileId, results) => {
+      // Add processing results to chat
+      const resultsMessage: ChatMessage = {
+        id: `results-${Date.now()}`,
+        role: "assistant",
+        content: `Document processed successfully:\n\n**Document Type:** ${results.documentType}\n**Status:** ${results.validationStatus}\n\n**Extracted Information:**\n${Object.entries(results.extractedData || {}).map(([key, value]) => `- **${key}:** ${value}`).join('\n')}`,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          agent: "DocumentProcessor",
+          documents: [fileId],
+          processingResults: results,
+        },
+      };
+      setMessages(prev => [...prev, resultsMessage]);
+    },
+    onFileError: (fileId, error) => {
+      const errorMessage: ChatMessage = {
+        id: `error-${Date.now()}`,
+        role: "assistant",
+        content: `Failed to process document: ${error}`,
+        timestamp: new Date().toISOString(),
+        metadata: {
+          agent: "DocumentProcessor",
+          documents: [fileId],
+        },
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    },
+  });
 
   // Initialize ADK client and session
   useEffect(() => {
@@ -72,7 +113,7 @@ export function ADKChatInterface() {
     initializeADK();
   }, []);
 
-  const sendMessage = useCallback(async (content: string, files?: File[]) => {
+  const sendMessage = useCallback(async (content: string, files?: DocumentFile[]) => {
     if (!currentSession || !adkClientRef.current || isLoading) {
       return;
     }
@@ -89,14 +130,38 @@ export function ADKChatInterface() {
         role: "user",
         content: content,
         timestamp: new Date().toISOString(),
+        metadata: files && files.length > 0 ? {
+          documents: files.map(f => f.id),
+        } : undefined,
       };
 
       setMessages(prev => [...prev, userMessage]);
 
-      // Prepare request
+      // If files are uploaded, process them first
+      if (files && files.length > 0) {
+        setCurrentAgent("DocumentProcessor");
+        setProcessingStage("Processing uploaded documents...");
+        
+        try {
+          await processFiles(files);
+        } catch (error) {
+          console.error('Document processing error:', error);
+          toast.error('Failed to process documents');
+        }
+        
+        // Continue with normal message processing after documents are handled
+        if (!content.trim()) {
+          setIsLoading(false);
+          setCurrentAgent(null);
+          setProcessingStage(null);
+          return;
+        }
+      }
+
+      // Prepare request - convert DocumentFiles to Files if needed
       const request = {
         message: content,
-        files,
+        files: files?.map(f => f.originalFile),
         metadata: {},
       };
 
@@ -213,8 +278,9 @@ export function ADKChatInterface() {
       },
     ]);
     setError(null);
+    clearProcessingStatus();
     toast.success("Chat cleared");
-  }, []);
+  }, [clearProcessingStatus]);
 
   if (isConnecting) {
     return (
@@ -295,6 +361,12 @@ export function ADKChatInterface() {
             {error}
           </div>
         )}
+        
+        {/* Network status */}
+        <NetworkStatus 
+          onRetry={retryConnection}
+          className="mt-2"
+        />
       </div>
 
       {/* Messages */}
@@ -306,6 +378,10 @@ export function ADKChatInterface() {
       <div className="border-t bg-card/50">
         <MessageInput 
           onSendMessage={sendMessage}
+          onRetryFile={(file) => {
+            // Use the retry function from the document processing hook
+            processFiles([file]);
+          }}
           disabled={isLoading || !currentSession}
           placeholder={
             !currentSession 

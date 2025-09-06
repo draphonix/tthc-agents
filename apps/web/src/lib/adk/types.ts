@@ -23,6 +23,7 @@ export interface ChatMessage {
     agent?: string;
     documents?: string[];
     validationResults?: any;
+    processingResults?: any;
     processingTime?: number;
   };
 }

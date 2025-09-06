@@ -1,24 +1,27 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
-import { Send, Paperclip, X } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Send, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DocumentUploader, type DocumentFile } from "./document-uploader";
 
 interface MessageInputProps {
-  onSendMessage: (message: string, files?: File[]) => void;
+  onSendMessage: (message: string, files?: DocumentFile[]) => void;
+  onRetryFile?: (file: DocumentFile) => void;
   disabled?: boolean;
   placeholder?: string;
 }
 
 export function MessageInput({ 
   onSendMessage, 
+  onRetryFile,
   disabled = false,
   placeholder = "Type your message..." 
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<DocumentFile[]>([]);
+  const [showUploader, setShowUploader] = useState(false);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +32,7 @@ export function MessageInput({
     onSendMessage(trimmedMessage, files.length > 0 ? files : undefined);
     setMessage("");
     setFiles([]);
+    setShowUploader(false);
   }, [message, files, onSendMessage]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -38,102 +42,40 @@ export function MessageInput({
     }
   }, [handleSubmit]);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    const validFiles = selectedFiles.filter(file => {
-      // Check file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        console.warn(`File ${file.name} is too large (max 10MB)`);
-        return false;
-      }
-      
-      // Check file type (images and PDFs)
-      const allowedTypes = ['image/', 'application/pdf'];
-      if (!allowedTypes.some(type => file.type.startsWith(type))) {
-        console.warn(`File ${file.name} is not a supported type`);
-        return false;
-      }
-      
-      return true;
-    });
-
-    setFiles(prev => [...prev, ...validFiles]);
-    
-    // Clear the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+  const handleFilesChange = useCallback((newFiles: DocumentFile[]) => {
+    setFiles(newFiles);
   }, []);
 
-  const removeFile = useCallback((index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const toggleUploader = useCallback(() => {
+    setShowUploader(prev => !prev);
   }, []);
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   return (
     <div className="p-4 space-y-3">
-      {/* File attachments */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs text-muted-foreground">
-            Attached files ({files.length}):
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {files.map((file, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 bg-secondary/50 rounded px-2 py-1 text-xs"
-              >
-                <span className="truncate max-w-32">
-                  {file.name}
-                </span>
-                <span className="text-muted-foreground">
-                  ({formatFileSize(file.size)})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => removeFile(index)}
-                  className="text-destructive hover:text-destructive/80 ml-1"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Document uploader (when toggled) */}
+      {showUploader && (
+        <DocumentUploader
+          files={files}
+          onFilesChange={handleFilesChange}
+          onRetryFile={onRetryFile}
+          disabled={disabled}
+          className="border rounded-lg p-4 bg-secondary/20"
+        />
       )}
 
       {/* Input form */}
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
-        {/* File upload button */}
-        <div className="relative">
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf"
-            onChange={handleFileSelect}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={disabled}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className="relative"
-            disabled={disabled}
-            title="Attach files (images, PDFs)"
-          >
-            <Paperclip size={18} />
-          </Button>
-        </div>
+        {/* File upload toggle button */}
+        <Button
+          type="button"
+          variant={showUploader ? "default" : "outline"}
+          size="icon"
+          onClick={toggleUploader}
+          disabled={disabled}
+          title="Upload documents"
+        >
+          <Upload size={18} />
+        </Button>
 
         {/* Text input */}
         <Input
