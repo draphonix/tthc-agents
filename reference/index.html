@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Đăng ký Khai sinh AI - AI-Powered Birth Registration System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Landing Page -->
+    <div id="landing-page" class="view active">
+        <header class="vietnam-header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <div class="vietnam-flag">🇻🇳</div>
+                        <div class="logo-text">
+                            <h1>Chính phủ Việt Nam</h1>
+                            <p>Government of Vietnam</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="landing-main">
+            <div class="container">
+                <div class="hero-section">
+                    <div class="hero-content">
+                        <h1>Hệ thống Đăng ký Khai sinh AI</h1>
+                        <h2>AI-Powered Birth Registration System</h2>
+                        <p class="hero-description">
+                            Hệ thống AI thông minh tự động xác định quy trình phù hợp cho từng trường hợp cụ thể.
+                            Không còn bối rối về thủ tục - AI sẽ hướng dẫn bạn đến đúng con đường.
+                        </p>
+                        <p class="hero-description-en">
+                            Smart AI system automatically determines the appropriate process for each specific case.
+                            No more confusion about procedures - AI will guide you to the right path.
+                        </p>
+                        <button class="btn btn--primary btn--lg start-assessment">
+                            Bắt đầu đánh giá / Start Assessment
+                        </button>
+                    </div>
+                    <div class="hero-visual">
+                        <img src="https://ppl-ai-code-interpreter-files.s3.amazonaws.com/web/direct-files/306377b7ac5ce9425b7b5b7170e4be14/817e59ec-882f-4e34-99f3-2234ffe61d1a/94ac73b4.png" alt="Intelligent Multi-Path Birth Registration System" class="process-diagram">
+                    </div>
+                </div>
+
+                <div class="routing-benefits-section">
+                    <h3>Lợi ích của hệ thống định tuyến thông minh / Intelligent Routing Benefits</h3>
+                    <div class="routing-grid">
+                        <div class="routing-benefit">
+                            <div class="benefit-icon">🎯</div>
+                            <h4>Tự động xác định trường hợp</h4>
+                            <p>AI phân tích tình huống và chọn quy trình phù hợp nhất</p>
+                        </div>
+                        <div class="routing-benefit">
+                            <div class="benefit-icon">📋</div>
+                            <h4>Danh sách tài liệu chính xác</h4>
+                            <p>Chỉ yêu cầu đúng những giấy tờ cần thiết cho trường hợp của bạn</p>
+                        </div>
+                        <div class="routing-benefit">
+                            <div class="benefit-icon">🏛️</div>
+                            <h4>Định tuyến cơ quan đúng</h4>
+                            <p>Tự động chuyển hồ sơ đến cấp xử lý thích hợp</p>
+                        </div>
+                        <div class="routing-benefit">
+                            <div class="benefit-icon">⏱️</div>
+                            <h4>Thời gian xử lý tối ưu</h4>
+                            <p>Ước tính chính xác thời gian dựa trên độ phức tạp</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="scenarios-overview">
+                    <h3>Các trường hợp được hỗ trợ / Supported Scenarios</h3>
+                    <div class="scenarios-grid" id="scenarios-grid">
+                        <!-- Scenarios will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Smart Assessment View -->
+    <div id="smart-assessment" class="view">
+        <header class="app-header">
+            <div class="container">
+                <button class="btn btn--outline back-btn">← Quay lại / Back</button>
+                <h1>Đánh giá thông minh / Smart Assessment</h1>
+                <div class="progress-indicator">
+                    <span class="step active">1</span>
+                    <span class="step">2</span>
+                    <span class="step">3</span>
+                    <span class="step">4</span>
+                    <span class="step">5</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="assessment-content">
+                <div class="assessment-intro">
+                    <h2>Trả lời một vài câu hỏi để xác định quy trình phù hợp</h2>
+                    <p>Answer a few questions to determine the appropriate process</p>
+                </div>
+
+                <div class="questionnaire" id="questionnaire">
+                    <!-- Questions will be populated by JavaScript -->
+                </div>
+
+                <div class="scenario-result" id="scenario-result" style="display: none;">
+                    <div class="result-card">
+                        <h3>Kết quả đánh giá / Assessment Result</h3>
+                        <div class="scenario-info" id="scenario-info">
+                            <!-- Scenario information will be populated -->
+                        </div>
+                        <div class="result-actions">
+                            <button class="btn btn--primary proceed-to-documents">
+                                Tiếp tục nộp tài liệu / Proceed to Document Submission
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Document Submission View -->
+    <div id="document-submission" class="view">
+        <header class="app-header">
+            <div class="container">
+                <button class="btn btn--outline back-btn">← Quay lại / Back</button>
+                <h1>Nộp tài liệu / Document Submission</h1>
+                <div class="progress-indicator">
+                    <span class="step completed">1</span>
+                    <span class="step active">2</span>
+                    <span class="step">3</span>
+                    <span class="step">4</span>
+                    <span class="step">5</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="document-submission-content">
+                <div class="scenario-summary">
+                    <div class="scenario-card" id="selected-scenario-card">
+                        <!-- Selected scenario info will be populated -->
+                    </div>
+                </div>
+
+                <div class="requirements-panel">
+                    <h3>Tài liệu cần thiết / Required Documents</h3>
+                    <div class="document-checklist" id="document-checklist">
+                        <!-- Populated by JavaScript based on scenario -->
+                    </div>
+                </div>
+
+                <div class="upload-panel">
+                    <h3>Tải lên tài liệu / Upload Documents</h3>
+                    <div class="upload-areas" id="upload-areas">
+                        <!-- Upload areas will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="submission-actions">
+                        <button class="btn btn--primary btn--full-width" id="submit-documents" disabled>
+                            Nộp tài liệu / Submit Documents
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Agent Processing Dashboard -->
+    <div id="processing-dashboard" class="view">
+        <header class="app-header">
+            <div class="container">
+                <h1>Xử lý chuyên biệt / Specialized Processing</h1>
+                <div class="progress-indicator">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step active">3</span>
+                    <span class="step">4</span>
+                    <span class="step">5</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="processing-overview">
+                <div class="scenario-processing-info">
+                    <div class="processing-authority" id="processing-authority">
+                        <!-- Authority information will be populated -->
+                    </div>
+                    <div class="processing-timeline-estimate" id="processing-timeline-estimate">
+                        <!-- Timeline estimate will be populated -->
+                    </div>
+                </div>
+
+                <div class="overall-progress">
+                    <h3>Tiến độ tổng thể / Overall Progress</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="overall-progress"></div>
+                        </div>
+                        <span class="progress-text" id="overall-progress-text">0%</span>
+                    </div>
+                    <div class="time-remaining" id="time-remaining">
+                        <!-- Time remaining will be populated -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="agents-grid" id="agents-grid">
+                <!-- Agent cards will be populated by JavaScript based on scenario -->
+            </div>
+
+            <div class="processing-timeline">
+                <h3>Dòng thời gian xử lý / Processing Timeline</h3>
+                <div class="timeline-container" id="processing-timeline">
+                    <!-- Timeline will be populated by JavaScript -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Status Tracking View -->
+    <div id="status-tracking" class="view">
+        <header class="app-header">
+            <div class="container">
+                <h1>Theo dõi trạng thái / Status Tracking</h1>
+                <div class="progress-indicator">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step completed">3</span>
+                    <span class="step active">4</span>
+                    <span class="step">5</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="status-content">
+                <div class="status-overview">
+                    <div class="status-card">
+                        <h3>Trạng thái hiện tại / Current Status</h3>
+                        <div class="current-status" id="current-status">
+                            <div class="status status--info" id="status-badge">Đang xử lý / Processing</div>
+                            <p id="status-description">Hệ thống AI đang xử lý tài liệu của bạn...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="notifications-panel">
+                    <h3>Thông báo / Notifications</h3>
+                    <div class="notifications-list" id="notifications-list">
+                        <!-- Notifications will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <div class="step-tracker">
+                    <h3>Các bước xử lý / Processing Steps</h3>
+                    <div class="steps-list" id="steps-list">
+                        <!-- Steps will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Certificate Delivery View -->
+    <div id="certificate-delivery" class="view">
+        <header class="app-header">
+            <div class="container">
+                <h1>Hoàn thành / Completion</h1>
+                <div class="progress-indicator">
+                    <span class="step completed">1</span>
+                    <span class="step completed">2</span>
+                    <span class="step completed">3</span>
+                    <span class="step completed">4</span>
+                    <span class="step completed">5</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="container">
+            <div class="completion-content">
+                <div class="success-message">
+                    <div class="success-icon">✅</div>
+                    <h2>Đăng ký khai sinh thành công!</h2>
+                    <h3>Birth Registration Completed Successfully!</h3>
+                    <p>Giấy khai sinh đã được tạo và sẵn sàng để tải về.</p>
+                    <p>Birth certificate has been generated and is ready for download.</p>
+                </div>
+
+                <div class="scenario-completion-info" id="scenario-completion-info">
+                    <!-- Scenario-specific completion information -->
+                </div>
+
+                <div class="certificate-preview">
+                    <h3>Xem trước giấy khai sinh / Certificate Preview</h3>
+                    <div class="certificate-card">
+                        <div class="certificate-header">
+                            <div class="vietnam-emblem">🇻🇳</div>
+                            <div class="certificate-title">
+                                <h4>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</h4>
+                                <p>Độc lập - Tự do - Hạnh phúc</p>
+                                <h3>GIẤY KHAI SINH / BIRTH CERTIFICATE</h3>
+                            </div>
+                        </div>
+                        <div class="certificate-content">
+                            <div class="certificate-info">
+                                <p><strong>Số đăng ký:</strong> BRC-2025-001234</p>
+                                <p><strong>Registration Number:</strong> BRC-2025-001234</p>
+                                <p class="issue-date">Ngày cấp: 26/08/2025 / Issue Date: 26/08/2025</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="delivery-options">
+                    <h3>Tùy chọn nhận / Delivery Options</h3>
+                    <div class="delivery-methods">
+                        <button class="btn btn--primary download-digital">
+                            📄 Tải về số / Download Digital
+                        </button>
+                        <button class="btn btn--secondary request-physical">
+                            📮 Yêu cầu bản giấy / Request Physical Copy
+                        </button>
+                    </div>
+                </div>
+
+                <div class="reference-info">
+                    <h3>Thông tin tham chiếu / Reference Information</h3>
+                    <div class="reference-details">
+                        <p><strong>Mã tham chiếu:</strong> VN-BR-2025-08-26-001234</p>
+                        <p><strong>Reference Code:</strong> VN-BR-2025-08-26-001234</p>
+                        <p>Vui lòng lưu mã này để tra cứu sau.</p>
+                        <p>Please save this code for future reference.</p>
+                    </div>
+                </div>
+
+                <div class="completion-actions">
+                    <button class="btn btn--primary start-new">
+                        Đăng ký mới / New Registration
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
