@@ -8,6 +8,7 @@ export default function Header() {
 		{ to: "/", label: "Home" },
 		{ to: "/dashboard", label: "Dashboard" },
 		{ to: "/ai", label: "AI Chat" },
+		{ to: "/adk-chat", label: "ADK Assistant" },
 	] as const;
 
 	return (
