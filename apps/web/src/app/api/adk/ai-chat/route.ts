@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages } from 'ai';
 import { createADKProvider } from '@/lib/adk/ai-sdk-provider';
 
 const ADK_PROVIDER = createADKProvider({
@@ -11,9 +11,16 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   const { messages } = await request.json();
   
+  // Debug: Log the received messages format
+  console.log('API received messages:', JSON.stringify(messages, null, 2));
+  
+  // Convert UIMessages to ModelMessages if needed
+  const modelMessages = convertToModelMessages(messages);
+  console.log('Converted to model messages:', JSON.stringify(modelMessages, null, 2));
+  
   const result = await streamText({
     model: ADK_PROVIDER.languageModel('adk-model'),
-    messages,
+    messages: modelMessages,
   });
   
   return result.toTextStreamResponse();
