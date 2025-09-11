@@ -61,19 +61,36 @@ export function ADKChatInterface() {
                 agent: "OrchestratorAgent",
             },
         },
-        // Map AI SDK messages directly to ChatMessage format
-        ...aiMessages.map(msg => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.parts
-                .filter((part: any) => part.type === "text")
-                .map((part: any) => part.text)
-                .join(""),
-            timestamp: new Date().toISOString(),
-            metadata: {
-                agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
-            },
-        })),
+        // Map AI SDK messages directly to ChatMessage format (support content or parts)
+        ...aiMessages.map((msg: any) => {
+            const contentFromArray = Array.isArray(msg?.content)
+                ? msg.content
+                    .filter((part: any) => part?.type === "text")
+                    .map((part: any) => String(part?.text ?? ""))
+                    .join("")
+                : undefined;
+
+            const contentFromString = typeof msg?.content === "string" ? msg.content : undefined;
+
+            const contentFromParts = Array.isArray(msg?.parts)
+                ? msg.parts
+                    .filter((part: any) => part?.type === "text")
+                    .map((part: any) => String(part?.text ?? ""))
+                    .join("")
+                : undefined;
+
+            const resolvedContent = contentFromArray ?? contentFromString ?? contentFromParts ?? "";
+
+            return {
+                id: msg.id,
+                role: msg.role,
+                content: resolvedContent,
+                timestamp: new Date().toISOString(),
+                metadata: {
+                    agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
+                },
+            } as ChatMessage;
+        }),
     ];
 
     // ADK-specific state

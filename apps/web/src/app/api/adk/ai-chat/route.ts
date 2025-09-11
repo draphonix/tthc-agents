@@ -22,8 +22,9 @@ export async function POST(request: NextRequest) {
     model: ADK_PROVIDER.languageModel('adk-model'),
     messages: modelMessages,
   });
-  
-  return result.toTextStreamResponse();
+
+  // Return a UI message stream compatible with @ai-sdk/react useChat
+  return result.toUIMessageStreamResponse();
 }
 
 // Handle preflight requests for CORS

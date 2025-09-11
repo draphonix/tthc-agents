@@ -125,30 +125,30 @@ class ADKLanguageModel {
     // Stream response from ADK
     const stream = this.client.sendMessage(session.id, adkRequest);
     console.log('ADK stream created, starting to process...');
-    
-    // Convert ADK stream to AI SDK format
+
+    // Convert ADK stream to UI Message chunks expected by ai v5
+    // Emit a single text part with a stable id across the stream
+    const TEXT_ID = 'text-1';
     const textStream = new ReadableStream({
       async start(controller) {
         try {
           console.log('Starting to iterate ADK stream...');
+
+          // Begin a text part
+          controller.enqueue({ type: 'text-start', id: TEXT_ID });
+
           for await (const response of stream) {
             console.log('ADK stream response:', response);
             if (response.chunk) {
-              console.log('Enqueueing chunk:', response.chunk);
-              controller.enqueue({
-                type: 'text-delta',
-                delta: response.chunk,
-                id: `chunk-${Date.now()}`,
-              });
+              console.log('Enqueueing text-delta:', response.chunk);
+              controller.enqueue({ type: 'text-delta', id: TEXT_ID, delta: response.chunk });
             }
             
             if (response.isComplete) {
               console.log('ADK stream complete');
-              controller.enqueue({
-                type: 'finish',
-                usage: { promptTokens: 0, completionTokens: 0 },
-                finishReason: 'stop',
-              });
+              // End the text part before finishing
+              controller.enqueue({ type: 'text-end', id: TEXT_ID });
+              controller.enqueue({ type: 'finish', usage: { promptTokens: 0, completionTokens: 0 }, finishReason: 'stop' });
               controller.close();
               break;
             }
