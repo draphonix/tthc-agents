@@ -19,18 +19,36 @@ import { toast } from "sonner";
 const PLACEHOLDER_USER_ID = "user-123";
 
 export function ADKChatInterface() {
-    // AI SDK Chat Hook
-    const { messages: aiMessages, sendMessage: sendAIMessage, setMessages: setAIMessages } = useChat({
+    // Manual input state management (required in AI SDK v5)
+    const [input, setInput] = useState('');
+
+    // AI SDK Chat Hook with proper error handling and callbacks
+    const {
+        messages: aiMessages,
+        sendMessage: sendAIMessage,
+        setMessages: setAIMessages,
+        error: chatError,
+        status,
+        regenerate,
+        clearError
+    } = useChat({
         transport: new DefaultChatTransport({
             api: '/api/adk/ai-chat',
         }),
+        onError: (error) => {
+            console.error("Chat error:", error);
+            setError(error.message);
+            toast.error(error.message);
+        },
+        onFinish: ({ message, messages }) => {
+            // Handle completion
+            setCurrentAgent(null);
+            setProcessingStage(null);
+        }
     });
 
-    // Track if we're loading (sending a message)
-    const [isChatLoading, setIsChatLoading] = useState(false);
-    
-    // Local state for immediate UI updates
-    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    // Derive loading state from status
+    const isLoading = status === 'submitted' || status === 'streaming';
 
     // Convert AI SDK messages to ChatMessage format for compatibility + add welcome message
     const messages: ChatMessage[] = [
@@ -43,26 +61,19 @@ export function ADKChatInterface() {
                 agent: "OrchestratorAgent",
             },
         },
-        // Combine local messages (for immediate UI updates) and AI SDK messages
-        ...localMessages,
-        ...aiMessages.map(msg => {
-            // Extract content from message parts (AI SDK v5 format)
-            let content = "";
-            if (msg.parts && Array.isArray(msg.parts)) {
-                const textParts = msg.parts.filter((part: any) => part.type === "text");
-                content = textParts.map((part: any) => part.text).join("");
-            }
-            
-            return {
-                id: msg.id || `msg-${Date.now()}`,
-                role: msg.role as "user" | "assistant" | "system",
-                content: content,
-                timestamp: new Date().toISOString(),
-                metadata: {
-                    agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
-                },
-            };
-        }),
+        // Map AI SDK messages directly to ChatMessage format
+        ...aiMessages.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.parts
+                .filter((part: any) => part.type === "text")
+                .map((part: any) => part.text)
+                .join(""),
+            timestamp: new Date().toISOString(),
+            metadata: {
+                agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
+            },
+        })),
     ];
 
     // ADK-specific state
@@ -129,23 +140,16 @@ export function ADKChatInterface() {
         initializeADK();
     }, []);
 
-    // Effect to clean up local messages when AI SDK messages are updated
-    // This prevents duplicate messages in the UI
-    useEffect(() => {
-        if (aiMessages.length > 0) {
-            // Clear local messages when AI SDK messages are updated
-            // since the AI SDK now contains the complete conversation
-            setLocalMessages([]);
-        }
-    }, [aiMessages]);
+
 
     const sendMessage = useCallback(async (content: string, files?: DocumentFile[]) => {
-        if (!currentSession || isChatLoading) {
+        if (!currentSession || isLoading) {
             return;
         }
 
         try {
             setError(null);
+            clearError(); // Clear any previous chat errors
             setCurrentAgent("OrchestratorAgent");
             setProcessingStage("Processing your request...");
 
@@ -169,22 +173,8 @@ export function ADKChatInterface() {
                 }
             }
 
-            // Add user message to local state for immediate UI feedback
-            if (content.trim()) {
-                const userMessage: ChatMessage = {
-                    id: `user-msg-${Date.now()}`,
-                    role: "user",
-                    content: content.trim(),
-                    timestamp: new Date().toISOString(),
-                    metadata: {},
-                };
-                
-                setLocalMessages(prev => [...prev, userMessage]);
-            }
-
             // Send message using AI SDK's sendMessage function
             // The streaming and response handling is now managed by AI SDK
-            setIsChatLoading(true);
             await sendAIMessage({ text: content });
 
         } catch (error) {
@@ -192,15 +182,9 @@ export function ADKChatInterface() {
             const errorMessage = error instanceof ADKError ? error.message : "Failed to send message";
             setError(errorMessage);
             toast.error(errorMessage);
-
-            // Add error message using AI SDK
-            sendAIMessage({ text: `I'm sorry, I encountered an error: ${errorMessage}. Please try again.` });
-        } finally {
-            setCurrentAgent(null);
-            setProcessingStage(null);
-            setIsChatLoading(false);
         }
-    }, [currentSession, isChatLoading, sendAIMessage, processFiles]);
+        // Note: setCurrentAgent and setProcessingStage are handled in onFinish callback
+    }, [currentSession, isLoading, sendAIMessage, processFiles, clearError]);
 
     const retryConnection = useCallback(async () => {
         if (!sessionHookRef.current || !adkClientRef.current) {
@@ -230,10 +214,10 @@ export function ADKChatInterface() {
     }, []);
 
     const clearChat = useCallback(() => {
-        // Clear both AI SDK messages and local messages
+        // Clear AI SDK messages
         setAIMessages([]);
-        setLocalMessages([]);
-    }, [setAIMessages]);
+        clearError(); // Clear any chat errors
+    }, [setAIMessages, clearError]);
 
     if (isConnecting) {
         return (
@@ -281,7 +265,7 @@ export function ADKChatInterface() {
                         <AgentStatusIndicator
                             currentAgent={currentAgent}
                             processingStage={processingStage}
-                            isLoading={isChatLoading}
+                            isLoading={isLoading}
                         />
                         {currentSession && (
                             <div className="text-xs text-muted-foreground">
@@ -315,6 +299,19 @@ export function ADKChatInterface() {
                     </div>
                 )}
 
+                {chatError && (
+                    <div className="mt-2 text-xs text-destructive bg-destructive/10 p-2 rounded flex items-center justify-between">
+                        <span>Chat error occurred</span>
+                        <button
+                            onClick={() => regenerate()}
+                            className="text-xs px-2 py-1 bg-destructive/20 text-destructive rounded hover:bg-destructive/30"
+                            disabled={isLoading}
+                        >
+                            Retry
+                        </button>
+                    </div>
+                )}
+
                 {/* Network status */}
                 <NetworkStatus
                     onRetry={retryConnection}
@@ -324,7 +321,7 @@ export function ADKChatInterface() {
 
             {/* Messages */}
             <div className="flex-1 min-h-0">
-                <MessageList messages={messages} isLoading={isChatLoading} />
+                <MessageList messages={messages} isLoading={isLoading} />
             </div>
 
             {/* Input */}
@@ -335,11 +332,11 @@ export function ADKChatInterface() {
                         // Use the retry function from the document processing hook
                         processFiles([file]);
                     }}
-                    disabled={isChatLoading || !currentSession}
+                    disabled={isLoading || !currentSession}
                     placeholder={
                         !currentSession
                             ? "Connecting to ADK..."
-                            : isChatLoading
+                            : isLoading
                                 ? "ADK is processing..."
                                 : "Ask about birth certificate registration..."
                     }
