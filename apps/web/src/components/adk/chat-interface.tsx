@@ -20,7 +20,7 @@ const PLACEHOLDER_USER_ID = "user-123";
 
 export function ADKChatInterface() {
     // AI SDK Chat Hook
-    const { messages: aiMessages, sendMessage: sendAIMessage } = useChat({
+    const { messages: aiMessages, sendMessage: sendAIMessage, setMessages: setAIMessages } = useChat({
         transport: new DefaultChatTransport({
             api: '/api/adk/ai-chat',
         }),
@@ -28,6 +28,9 @@ export function ADKChatInterface() {
 
     // Track if we're loading (sending a message)
     const [isChatLoading, setIsChatLoading] = useState(false);
+    
+    // Local state for immediate UI updates
+    const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
 
     // Convert AI SDK messages to ChatMessage format for compatibility + add welcome message
     const messages: ChatMessage[] = [
@@ -40,15 +43,26 @@ export function ADKChatInterface() {
                 agent: "OrchestratorAgent",
             },
         },
-        ...aiMessages.map(msg => ({
-            id: (msg as any).id || `msg-${Date.now()}`,
-            role: msg.role as "user" | "assistant" | "system",
-            content: (msg as any).content || "",
-            timestamp: new Date().toISOString(),
-            metadata: {
-                agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
-            },
-        })),
+        // Combine local messages (for immediate UI updates) and AI SDK messages
+        ...localMessages,
+        ...aiMessages.map(msg => {
+            // Extract content from message parts (AI SDK v5 format)
+            let content = "";
+            if (msg.parts && Array.isArray(msg.parts)) {
+                const textParts = msg.parts.filter((part: any) => part.type === "text");
+                content = textParts.map((part: any) => part.text).join("");
+            }
+            
+            return {
+                id: msg.id || `msg-${Date.now()}`,
+                role: msg.role as "user" | "assistant" | "system",
+                content: content,
+                timestamp: new Date().toISOString(),
+                metadata: {
+                    agent: msg.role === "assistant" ? "OrchestratorAgent" : undefined,
+                },
+            };
+        }),
     ];
 
     // ADK-specific state
@@ -115,6 +129,16 @@ export function ADKChatInterface() {
         initializeADK();
     }, []);
 
+    // Effect to clean up local messages when AI SDK messages are updated
+    // This prevents duplicate messages in the UI
+    useEffect(() => {
+        if (aiMessages.length > 0) {
+            // Clear local messages when AI SDK messages are updated
+            // since the AI SDK now contains the complete conversation
+            setLocalMessages([]);
+        }
+    }, [aiMessages]);
+
     const sendMessage = useCallback(async (content: string, files?: DocumentFile[]) => {
         if (!currentSession || isChatLoading) {
             return;
@@ -143,6 +167,19 @@ export function ADKChatInterface() {
                     setProcessingStage(null);
                     return;
                 }
+            }
+
+            // Add user message to local state for immediate UI feedback
+            if (content.trim()) {
+                const userMessage: ChatMessage = {
+                    id: `user-msg-${Date.now()}`,
+                    role: "user",
+                    content: content.trim(),
+                    timestamp: new Date().toISOString(),
+                    metadata: {},
+                };
+                
+                setLocalMessages(prev => [...prev, userMessage]);
             }
 
             // Send message using AI SDK's sendMessage function
@@ -193,11 +230,10 @@ export function ADKChatInterface() {
     }, []);
 
     const clearChat = useCallback(() => {
-        // TODO: AI SDK doesn't have a built-in clear function
-        // For now, we'll refresh the page to reset the chat
-        // In the future, we could implement a setMessages function or use a different approach
-        window.location.reload();
-    }, []);
+        // Clear both AI SDK messages and local messages
+        setAIMessages([]);
+        setLocalMessages([]);
+    }, [setAIMessages]);
 
     if (isConnecting) {
         return (
