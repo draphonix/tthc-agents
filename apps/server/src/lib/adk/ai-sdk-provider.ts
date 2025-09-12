@@ -78,7 +78,7 @@ class ADKLanguageModel {
 
     // Extract text content from the message
     const content = lastMessage.content;
-    const messageText = Array.isArray(content) 
+    const messageText = Array.isArray(content)
       ? content.find((part: any) => part.type === 'text')?.text || ''
       : content;
 
@@ -103,15 +103,17 @@ class ADKLanguageModel {
               controller.enqueue({
                 type: 'text-delta',
                 delta: response.chunk,
-                id: `chunk-${Date.now()}`,
               });
             }
             
             if (response.isComplete) {
               controller.enqueue({
                 type: 'finish',
-                usage: { promptTokens: 0, completionTokens: 0 },
-                finishReason: 'stop',
+                usage: response.metadata?.usageMetadata ? {
+                  promptTokens: response.metadata.usageMetadata.promptTokenCount || 0,
+                  completionTokens: response.metadata.usageMetadata.candidatesTokenCount || 0,
+                } : { promptTokens: 0, completionTokens: 0 },
+                finishReason: response.metadata?.finishReason || 'stop',
               });
               controller.close();
               break;

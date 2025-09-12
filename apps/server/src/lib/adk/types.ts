@@ -51,6 +51,10 @@ export interface ADKStreamResponse {
   metadata?: {
     currentAgent?: string;
     processingStage?: string;
+    finishReason?: string;
+    usageMetadata?: any;
+    author?: string;
+    invocationId?: string;
   };
 }
 
@@ -84,4 +88,52 @@ export class ADKError extends Error {
     super(message);
     this.name = 'ADKError';
   }
+}
+
+export interface ADKSSEChunk {
+  content: {
+    parts: Array<{
+      thoughtSignature?: string;
+      text: string;
+    }>;
+    role: string;
+  };
+  partial: boolean;
+  usageMetadata?: {
+    trafficType: string;
+    candidatesTokenCount?: number;
+    candidatesTokensDetails?: Array<{
+      modality: string;
+      tokenCount: number;
+    }>;
+    promptTokenCount?: number;
+    promptTokensDetails?: Array<{
+      modality: string;
+      tokenCount: number;
+    }>;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  invocationId: string;
+  author: string;
+  actions: {
+    stateDelta: Record<string, any>;
+    artifactDelta: Record<string, any>;
+    requestedAuthConfigs: Record<string, any>;
+  };
+  id: string;
+  timestamp: number;
+  finishReason?: string;
+}
+
+export interface ParsedADKResponse {
+  text: string;
+  isPartial: boolean;
+  isComplete: boolean;
+  metadata?: {
+    finishReason?: string;
+    usageMetadata?: any;
+    author?: string;
+    invocationId?: string;
+  };
 }

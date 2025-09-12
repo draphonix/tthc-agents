@@ -24,7 +24,14 @@ export async function POST(request: NextRequest) {
   });
 
   // Return a UI message stream compatible with @ai-sdk/react useChat
-  return result.toUIMessageStreamResponse();
+  // Add proper headers for streaming
+  return result.toUIMessageStreamResponse({
+    headers: {
+      'Transfer-Encoding': 'chunked',
+      'Connection': 'keep-alive',
+      'Content-Encoding': 'none',
+    },
+  });
 }
 
 // Handle preflight requests for CORS

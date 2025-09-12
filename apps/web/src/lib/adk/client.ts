@@ -5,6 +5,8 @@ import type {
   ADKStreamResponse,
   ADKError as ADKErrorType,
   DocumentUpload,
+  ADKSSEChunk,
+  ParsedADKResponse,
 } from './types';
 import { ADKError } from './types';
 
@@ -153,10 +155,14 @@ export class ADKClient {
           if (done) {
             // Process any remaining content in buffer
             if (buffer.trim()) {
-              yield {
-                chunk: buffer.trim(),
-                isComplete: true,
-              };
+              const parsed = this.parseSSEChunk(buffer.trim());
+              if (parsed) {
+                yield {
+                  chunk: parsed.text,
+                  isComplete: parsed.isComplete,
+                  metadata: parsed.metadata,
+                };
+              }
             }
             break;
           }
@@ -164,16 +170,23 @@ export class ADKClient {
           const chunk = decoder.decode(value, { stream: true });
           buffer += chunk;
 
-          // Process complete lines
-          const lines = buffer.split('\\n');
+          // Process complete SSE messages
+          const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
           for (const line of lines) {
-            if (line.trim()) {
-              yield {
-                chunk: line.trim(),
-                isComplete: false,
-              };
+            if (line.trim().startsWith('data: ')) {
+              const jsonStr = line.trim().substring(6); // Remove 'data: ' prefix
+              if (jsonStr && jsonStr !== '[DONE]') {
+                const parsed = this.parseSSEChunk(jsonStr);
+                if (parsed) {
+                  yield {
+                    chunk: parsed.text,
+                    isComplete: parsed.isComplete,
+                    metadata: parsed.metadata,
+                  };
+                }
+              }
             }
           }
         }
@@ -182,6 +195,33 @@ export class ADKClient {
       }
     } catch (error) {
       throw this.handleError(error, 'Failed to send message');
+    }
+  }
+
+  private parseSSEChunk(jsonStr: string): ParsedADKResponse | null {
+    try {
+      const data: ADKSSEChunk = JSON.parse(jsonStr);
+      
+      // Extract text from the first part
+      const text = data.content?.parts?.[0]?.text || '';
+      
+      // Check if this is a complete response
+      const isComplete = !!data.finishReason;
+      
+      return {
+        text,
+        isPartial: data.partial,
+        isComplete,
+        metadata: {
+          finishReason: data.finishReason,
+          usageMetadata: data.usageMetadata,
+          author: data.author,
+          invocationId: data.invocationId,
+        },
+      };
+    } catch (error) {
+      console.error('Failed to parse SSE chunk:', error);
+      return null;
     }
   }
 

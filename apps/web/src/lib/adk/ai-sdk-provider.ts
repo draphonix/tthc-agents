@@ -96,7 +96,7 @@ class ADKLanguageModel {
     if (lastMessage.content) {
       // Standard AI SDK format with content
       const content = lastMessage.content;
-      messageText = Array.isArray(content) 
+      messageText = Array.isArray(content)
         ? content.find((part: any) => part.type === 'text')?.text || ''
         : content;
     } else if (lastMessage.parts && Array.isArray(lastMessage.parts)) {
@@ -148,7 +148,14 @@ class ADKLanguageModel {
               console.log('ADK stream complete');
               // End the text part before finishing
               controller.enqueue({ type: 'text-end', id: TEXT_ID });
-              controller.enqueue({ type: 'finish', usage: { promptTokens: 0, completionTokens: 0 }, finishReason: 'stop' });
+              controller.enqueue({
+                type: 'finish',
+                usage: response.metadata?.usageMetadata ? {
+                  promptTokens: response.metadata.usageMetadata.promptTokenCount || 0,
+                  completionTokens: response.metadata.usageMetadata.candidatesTokenCount || 0,
+                } : { promptTokens: 0, completionTokens: 0 },
+                finishReason: response.metadata?.finishReason || 'stop'
+              });
               controller.close();
               break;
             }
