@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Test script to send a message to the ADK chat route and capture the response
+ * Test script to send a message to the ADK chat route and capture the raw response
  * Run with: node test-adk-chat-route.js
  */
 
@@ -9,30 +9,28 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuration
-const SERVER_URL = 'http://localhost:3000'; // Adjust if your server runs on a different port
-const API_ENDPOINT = '/api/adk/chat';
+const ADK_SERVICE_URL = 'https://adk-service-418025649220.us-east4.run.app';
 
 // Test data
 const testData = {
-  sessionId: `test-session-${Date.now()}`,
+  appName: 'orchestrator',
   userId: `test-user-${Date.now()}`,
-  message: 'Hello, can you help me with birth certificate registration in Vietnam?',
-  metadata: {
-    test: true,
-    timestamp: new Date().toISOString()
-  }
+  sessionId: '', // Will be set after session creation
+  newMessage: {
+    parts: [{ text: 'Hello, can you help me with birth certificate registration in Vietnam?' }],
+    role: 'user',
+  },
+  streaming: true,
 };
 
-async function testAdkChatRoute() {
-  console.log('🔍 Testing ADK Chat Route...');
-  console.log(`URL: ${SERVER_URL}${API_ENDPOINT}`);
-  console.log('Test data:', JSON.stringify(testData, null, 2));
+async function testAdkDirect() {
+  console.log('🔍 Testing ADK Direct API...');
+  console.log(`URL: ${ADK_SERVICE_URL}/run_sse`);
   console.log('');
 
   try {
     // First, we need to create a session with the ADK service
     console.log('1. Creating session with ADK service...');
-    const ADK_SERVICE_URL = 'https://adk-service-418025649220.us-east4.run.app';
     
     const sessionResponse = await fetch(
       `${ADK_SERVICE_URL}/apps/orchestrator/users/${testData.userId}/sessions`,
@@ -49,10 +47,10 @@ async function testAdkChatRoute() {
     // Update sessionId with the actual session ID
     testData.sessionId = sessionData.id;
 
-    // Send message to our server's ADK chat route
-    console.log('\n2. Sending message to ADK chat route...');
+    // Send message directly to ADK service
+    console.log('\n2. Sending message directly to ADK service...');
     
-    const response = await fetch(`${SERVER_URL}${API_ENDPOINT}`, {
+    const response = await fetch(`${ADK_SERVICE_URL}/run_sse`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -66,13 +64,13 @@ async function testAdkChatRoute() {
       throw new Error(`Request failed: ${response.status}`);
     }
 
-    console.log('✅ Request successful, capturing streaming response...');
+    console.log('✅ Request successful, capturing raw streaming response...');
 
     // Handle streaming response
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullResponse = '';
-    let chunks = [];
+    let rawChunks = [];
 
     try {
       while (true) {
@@ -84,45 +82,44 @@ async function testAdkChatRoute() {
 
         const chunk = decoder.decode(value, { stream: true });
         fullResponse += chunk;
-        chunks.push(chunk);
+        rawChunks.push(chunk);
         
         // Log each chunk for debugging
-        console.log('📦 Received chunk:', chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
+        console.log('📦 Received raw chunk:', chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
       }
     } finally {
       reader.releaseLock();
     }
 
     console.log('\n✅ Streaming response complete');
-    console.log(`Total chunks received: ${chunks.length}`);
+    console.log(`Total chunks received: ${rawChunks.length}`);
     console.log(`Total response length: ${fullResponse.length} characters`);
 
-    // Create a model from the captured response
+    // Create a model with only the raw data
     const model = {
       timestamp: new Date().toISOString(),
       request: testData,
-      response: {
+      rawResponse: {
         fullText: fullResponse,
-        chunks: chunks,
-        chunkCount: chunks.length
+        chunks: rawChunks,
+        chunkCount: rawChunks.length
       },
       metadata: {
-        serverUrl: SERVER_URL,
-        apiEndpoint: API_ENDPOINT,
-        adkServiceUrl: ADK_SERVICE_URL
+        adkServiceUrl: ADK_SERVICE_URL,
+        endpoint: '/run_sse'
       }
     };
 
     // Save the model to a file
-    const modelPath = path.join(__dirname, 'adk-response-model.json');
+    const modelPath = path.join(__dirname, 'adk-raw-response-model.json');
     fs.writeFileSync(modelPath, JSON.stringify(model, null, 2));
     
-    console.log('\n💾 Model saved to:', modelPath);
+    console.log('\n💾 Raw model saved to:', modelPath);
     console.log('\n📋 Model Summary:');
-    console.log('   - Request:', testData.message);
+    console.log('   - Request:', testData.newMessage.parts[0].text);
     console.log('   - Session ID:', testData.sessionId);
     console.log('   - User ID:', testData.userId);
-    console.log('   - Response chunks:', chunks.length);
+    console.log('   - Raw response chunks:', rawChunks.length);
     console.log('   - Total response length:', fullResponse.length, 'characters');
 
     // Clean up - delete the session
@@ -148,4 +145,4 @@ async function testAdkChatRoute() {
 }
 
 // Run the test
-testAdkChatRoute();
+testAdkDirect();
