@@ -16,6 +16,11 @@ export type {
 } from './types';
 export { ADKError } from './types';
 
+// AI SDK integration exports
+export { createADKProvider } from './ai-sdk-provider';
+export { ADKTransport } from './ai-sdk-transport';
+export type { ADKProviderConfig } from './ai-sdk-provider';
+
 // Utility functions
 export const createADKClient = (userId: string, config?: { baseUrl?: string }) => {
   return new ADKClient(userId, config);

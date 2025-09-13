@@ -1,812 +1,348 @@
-# ADK Chat Integration Plan for TTHC Application
-
-## Executive Summary
-
-This document outlines a comprehensive plan to integrate the already-deployed Google Agent Development Kit (ADK) service into the TTHC Next.js application. The ADK service is live at `https://adk-service-418025649220.us-east4.run.app` and provides AI-powered assistance for Vietnamese birth certificate registration through multiple specialized agents.
-
-## Quick Start Guide
-
-**ADK Service is already live at:** `https://adk-service-418025649220.us-east4.run.app`
-
-To quickly integrate ADK chat into your TTHC app:
-
-1. **Add environment variable:**
-   ```bash
-   echo "NEXT_PUBLIC_ADK_SERVICE_URL=https://adk-service-418025649220.us-east4.run.app" >> apps/web/.env.local
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   cd apps/web
-   bun add react-dropzone
-   ```
-
-3. **Create the chat route and components** (see Implementation Code section)
-
-4. **Test the integration:**
-   ```bash
-   bun dev
-   # Navigate to http://localhost:3002/adk-chat
-   ```
-
-## Table of Contents
-
-1. [Project Overview](#project-overview)
-2. [Current State Analysis](#current-state-analysis)
-3. [Integration Architecture](#integration-architecture)
-4. [Implementation Strategy](#implementation-strategy)
-5. [Technical Requirements](#technical-requirements)
-6. [Development Phases](#development-phases)
-7. [API Design](#api-design)
-8. [Security Considerations](#security-considerations)
-9. [Testing Strategy](#testing-strategy)
-10. [Deployment Plan](#deployment-plan)
-11. [Timeline & Milestones](#timeline--milestones)
-
-## Project Overview
-
-### Goals
-- Integrate ADK's Vietnamese birth registration agents into TTHC application
-- Create a dedicated chat interface for AI-powered assistance
-- Maintain separation of concerns between frontend and backend services
-- Enable document upload and processing capabilities
-- Provide real-time, context-aware guidance for birth certificate registration
-
-### Key Features
-- **Intelligent Chat Interface**: Natural language conversation with AI agents
-- **Document Processing**: Upload and analyze Vietnamese government documents
-- **Multi-Agent Orchestration**: Leverage specialized sub-agents for different tasks
-- **Validation & Compliance**: Ensure documents meet Vietnamese legal requirements
-- **Contextual Assistance**: Provide personalized guidance based on user's specific situation
+# ADK Integration with Vercel AI SDK - Plan
 
 ## Current State Analysis
 
-### ADK Project Structure
+### ADK Response Format
+The ADK service returns Server-Sent Events (SSE) with the following format:
 ```
-kieng-gfs-2025-adk/
-├── main.py                     # FastAPI entry point with ADK integration
-├── k_agents/                   # Agent definitions
-│   ├── agent.py               # Orchestrator agent
-│   ├── sub_agents/            # Specialized agents
-│   │   ├── classification/    # Legal research & requirements
-│   │   ├── document_processor/ # Image processing & OCR
-│   │   ├── validator/         # Data validation
-│   │   ├── ground_truth/      # Database operations
-│   │   └── delivery/          # Email notifications
-│   └── tools/                 # Custom tools for agents
-└── models/                    # Pydantic models for validation
+data: {"content":{"parts":[{"thoughtSignature":"...","text":"Of course! I can certainly help you with that..."}],"role":"model"},"partial":true,"usageMetadata":{"trafficType":"ON_DEMAND"},"invocationId":"...","author":"OrchestratorAgent","actions":{},"id":"...","timestamp":...}
 ```
 
-### TTHC Application Structure
-```
-tthc/
-├── apps/
-│   ├── web/                  # Next.js frontend
-│   │   └── src/
-│   │       ├── app/
-│   │       │   └── ai/       # Existing AI chat page
-│   │       └── components/   # UI components
-│   └── server/               # Backend services
-│       └── src/
-│           ├── app/          # API routes
-│           └── routers/      # Business logic
-└── packages/                 # Shared packages
-```
+### Current Implementation Issues
+1. The ADK client is not properly parsing the SSE format from ADK
+2. The AI SDK provider is not correctly handling the ADK response structure
+3. The streaming response is not being formatted correctly for the Vercel AI SDK
 
-### Current Capabilities
+## Integration Plan
 
-#### ADK Agents
-1. **OrchestratorAgent**: Main coordinator for all sub-agents
-2. **ClassificationAgent**: Legal research and document requirements
-3. **DocumentProcessorAgent**: Vision-based document analysis
-4. **ValidatorAgent**: Pydantic model validation
-5. **GroundTruthAgent**: Database operations
-6. **DeliveryAgent**: Email notifications
+### 1. Implement ADK Response Parser for SSE Format
 
-#### TTHC Application
-- Next.js 15.5 with App Router
-- Existing AI chat interface using `@ai-sdk/react`
-- TanStack Query for data fetching
-- Better Auth for authentication
-- Tailwind CSS for styling
+**Goal**: Create a parser that can properly extract text content from ADK's SSE responses.
 
-## Integration Architecture
+**Implementation Details**:
+- Create a new parser function that can handle the SSE format
+- Extract text content from the `content.parts[0].text` field
+- Handle both partial and complete responses
+- Extract metadata like `finishReason`, `usageMetadata`, etc.
 
-### High-Level Architecture
+**Files to Modify**:
+- `apps/server/src/lib/adk/types.ts` - Add new types for parsed ADK responses
+- `apps/web/src/lib/adk/types.ts` - Add new types for parsed ADK responses
 
-```mermaid
-graph TB
-    subgraph "TTHC Frontend"
-        A[Next.js App] --> B[ADK Chat Route]
-        B --> C[Chat UI Component]
-        C --> D[Document Upload]
-    end
-    
-    subgraph "API Gateway"
-        E[Next.js API Routes]
-        F[WebSocket Server]
-    end
-    
-    subgraph "ADK Service"
-        G[FastAPI Server]
-        H[ADK Agents]
-        I[Session Management]
-        J[Document Storage]
-    end
-    
-    C --> E
-    D --> E
-    E --> G
-    F --> G
-    G --> H
-    H --> I
-    H --> J
-```
+### 2. Update ADK Client to Properly Parse SSE Chunks
 
-### Component Integration Pattern
+**Goal**: Modify the ADK client to parse SSE chunks correctly and extract meaningful content.
+
+**Implementation Details**:
+- Update the `sendMessage` method in the ADK client
+- Parse each SSE chunk to extract JSON data
+- Extract text content from the parsed data
+- Handle partial responses (when `partial: true`)
+- Handle complete responses (when `finishReason` is present)
+
+**Files to Modify**:
+- `apps/server/src/lib/adk/client.ts`
+- `apps/web/src/lib/adk/client.ts`
+
+### 3. Update AI SDK Provider to Handle ADK Response Format
+
+**Goal**: Modify the AI SDK provider to properly format ADK responses for the Vercel AI SDK.
+
+**Implementation Details**:
+- Update the `doStream` method in the ADK language model
+- Format the streaming response according to Vercel AI SDK expectations
+- Handle text deltas properly
+- Include metadata when available
+
+**Files to Modify**:
+- `apps/server/src/lib/adk/ai-sdk-provider.ts`
+- `apps/web/src/lib/adk/ai-sdk-provider.ts`
+
+### 4. Test the Integration with a Sample Message
+
+**Goal**: Verify that the integration works correctly with a test message.
+
+**Implementation Details**:
+- Create a test script that sends a message to the ADK service
+- Verify that the response is properly streamed
+- Check that the text content is correctly extracted and displayed
+- Ensure that the streaming works as expected
+
+**Files to Create/Modify**:
+- Create a test script or update existing test files
+
+## Detailed Implementation Steps
+
+### Step 1: Add New Types for Parsed ADK Responses
+
+Add the following interfaces to both `apps/server/src/lib/adk/types.ts` and `apps/web/src/lib/adk/types.ts`:
 
 ```typescript
-// Frontend Components
-├── ADKChatPage         // Main chat interface
-├── ChatMessageList     // Message display
-├── ChatInput          // User input with file upload
-├── DocumentUploader   // Document processing UI
-└── AgentStatusIndicator // Show which agent is active
-
-// Backend Services
-├── ADKProxyService    // Proxy requests to ADK
-├── SessionManager     // Manage chat sessions
-├── FileHandler        // Process document uploads
-└── StreamingAdapter   // Handle streaming responses
-```
-
-## Implementation Strategy
-
-### Current State: ADK Service Already Deployed
-
-The ADK service is already deployed and accessible at:
-- **Production URL**: `https://adk-service-418025649220.us-east4.run.app`
-- **API Documentation**: `https://adk-service-418025649220.us-east4.run.app/docs`
-- **Available Apps**: orchestrator, shared_libraries, sub_agents, tools
-
-### Integration Approach: API Client Integration
-
-Since the ADK service is already deployed, our integration strategy simplifies to:
-
-1. **Direct API Integration**: Connect to the deployed Cloud Run service
-2. **Next.js API Routes**: Create proxy routes for authentication and session management
-3. **Client-Side Chat Interface**: Build a rich chat UI that communicates with ADK
-4. **File Upload Handling**: Implement document upload through the ADK API
-
-**Advantages of this approach:**
-- No infrastructure management needed
-- ADK service is already scaled and maintained
-- Faster implementation timeline
-- Focus on frontend and user experience
-- Reduced deployment complexity
-
-## Technical Requirements
-
-### Frontend Requirements
-```json
-{
-  "dependencies": {
-    "@ai-sdk/react": "^2.0.9",
-    "react-dropzone": "^14.2.3",
-    "socket.io-client": "^4.5.0",
-    "markdown-to-jsx": "^7.3.2",
-    "react-syntax-highlighter": "^15.5.0"
-  }
-}
-```
-
-### Backend Requirements
-```python
-# requirements.txt additions
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-aiofiles==23.2.1
-redis==5.0.1
-celery==5.3.4
-```
-
-### Infrastructure Requirements
-- Docker & Docker Compose
-- Redis (for session management)
-- PostgreSQL (optional, for persistent storage)
-- Cloud Storage (for document uploads)
-- SSL certificates for HTTPS
-
-## Development Phases (Simplified for Deployed Service)
-
-### Phase 1: API Integration Setup (2-3 Days)
-**Objective**: Establish connection with deployed ADK service
-
-**Tasks**:
-1. Create ADK API client library
-2. Set up environment variables for ADK service URL
-3. Implement session management logic
-4. Create Next.js API proxy routes
-5. Test connectivity with deployed service
-
-**Deliverables**:
-- Working API client
-- Session creation and management
-- Basic request/response flow
-
-### Phase 2: Chat Interface Implementation (3-4 Days)
-**Objective**: Build complete chat functionality
-
-**Tasks**:
-1. Create dedicated `/adk-chat` route in Next.js
-2. Implement message sending and receiving
-3. Build chat UI with message history
-4. Add real-time response streaming
-5. Implement agent status indicators
-
-**Code Structure**:
-```typescript
-// apps/web/src/app/adk-chat/page.tsx
-export default function ADKChatPage() {
-  // Main chat interface
-}
-
-// apps/web/src/components/adk/ChatInterface.tsx
-export function ChatInterface() {
-  // Chat UI components
-}
-
-// apps/server/src/app/api/adk/route.ts
-export async function POST(request: Request) {
-  // Proxy to ADK service
-}
-```
-
-### Phase 3: Document Processing Integration (2-3 Days)
-**Objective**: Enable document upload and processing
-
-**Tasks**:
-1. Implement file upload component
-2. Integrate with ADK document processing endpoints
-3. Add progress indicators
-4. Display processing results
-5. Handle error states
-
-**API Endpoints**:
-```typescript
-POST /api/adk/upload     // Upload documents
-GET  /api/adk/status/:id // Check processing status
-GET  /api/adk/results/:id // Get processing results
-```
-
-### Phase 4: Polish & Production Ready (2-3 Days)
-**Objective**: Finalize features and prepare for production
-
-**Tasks**:
-1. Add error handling and retry logic
-2. Implement user authentication integration
-3. Add loading states and animations
-4. Create user onboarding flow
-5. Performance optimization
-6. Documentation and testing
-
-**Total Timeline: 10-13 Days** (vs 5 weeks originally)
-
-## API Design
-
-### Actual ADK Service Endpoints (Live)
-
-```yaml
-# Core Endpoints
-GET    /list-apps                                                    # List available apps
-GET    /health                                                       # Health check
-
-# Session Management
-POST   /apps/{app_name}/users/{user_id}/sessions                    # Create new session
-GET    /apps/{app_name}/users/{user_id}/sessions/{session_id}       # Get session details
-DELETE /apps/{app_name}/users/{user_id}/sessions/{session_id}       # Delete session
-
-# Chat/Message Handling (via WebSocket or streaming)
-POST   /apps/{app_name}/users/{user_id}/sessions/{session_id}/invoke # Send message & get response
-
-# Debug Endpoints
-GET    /debug/trace/{event_id}                                      # Get trace for event
-GET    /debug/trace/session/{session_id}                            # Get session trace
-
-# Available Apps:
-- orchestrator     # Main agent orchestrator
-- shared_libraries # Shared utilities
-- sub_agents      # Specialized agents
-- tools           # Agent tools
-```
-
-### Next.js Proxy Routes
-
-```typescript
-// apps/server/src/app/api/adk/chat/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  
-  // Forward to ADK service
-  const response = await fetch(`${ADK_SERVICE_URL}/chat/sessions/${body.sessionId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-  
-  // Stream response back
-  return new Response(response.body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-    },
-  });
-}
-```
-
-### Message Format
-
-```typescript
-interface ChatMessage {
+export interface ADKSSEChunk {
+  content: {
+    parts: Array<{
+      thoughtSignature?: string;
+      text: string;
+    }>;
+    role: string;
+  };
+  partial: boolean;
+  usageMetadata?: {
+    trafficType: string;
+    candidatesTokenCount?: number;
+    promptTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  invocationId: string;
+  author: string;
+  actions: {
+    stateDelta: Record<string, any>;
+    artifactDelta: Record<string, any>;
+    requestedAuthConfigs: Record<string, any>;
+  };
   id: string;
-  sessionId: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
+  timestamp: number;
+  finishReason?: string;
+}
+
+export interface ParsedADKResponse {
+  text: string;
+  isPartial: boolean;
+  isComplete: boolean;
   metadata?: {
-    agent?: string;
-    documents?: string[];
-    validationResults?: any;
-  };
-}
-
-interface DocumentUpload {
-  id: string;
-  sessionId: string;
-  filename: string;
-  mimeType: string;
-  size: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  results?: {
-    documentType: string;
-    extractedData: Record<string, any>;
-    validationStatus: 'valid' | 'invalid';
-    errors?: string[];
+    finishReason?: string;
+    usageMetadata?: any;
+    author?: string;
+    invocationId?: string;
   };
 }
 ```
 
-## Security Considerations
+### Step 2: Update ADK Client to Parse SSE Chunks
 
-### Authentication & Authorization
-1. Integrate with existing Better Auth system
-2. Add session-based access control
-3. Implement rate limiting per user
-4. Add CORS configuration for ADK service
+Modify the `sendMessage` method in both ADK client implementations:
 
-### Data Security
-1. Encrypt documents at rest
-2. Use HTTPS for all communications
-3. Implement input sanitization
-4. Add content filtering for sensitive data
-5. Secure file upload with virus scanning
-
-### API Security
 ```typescript
-// Middleware for ADK routes
-export async function adkAuthMiddleware(request: NextRequest) {
-  const session = await getSession(request);
-  
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  // Add user context to ADK request
-  request.headers.set('X-User-Id', session.userId);
-  request.headers.set('X-Session-Id', session.id);
-  
-  return NextResponse.next();
-}
-```
+async *sendMessage(
+  sessionId: string,
+  request: ADKInvokeRequest
+): AsyncGenerator<ADKStreamResponse, void, unknown> {
+  try {
+    // ... existing code to send request ...
 
-## Testing Strategy
-
-### Unit Tests
-```typescript
-// Test chat message handling
-describe('ADK Chat Integration', () => {
-  it('should send message to ADK service', async () => {
-    const response = await sendMessage({
-      sessionId: 'test-session',
-      content: 'I need help with birth registration',
-    });
-    
-    expect(response.status).toBe(200);
-    expect(response.data.agent).toBe('OrchestratorAgent');
-  });
-  
-  it('should handle document upload', async () => {
-    const file = new File(['content'], 'birth-cert.pdf');
-    const response = await uploadDocument(file);
-    
-    expect(response.status).toBe(200);
-    expect(response.data.status).toBe('processing');
-  });
-});
-```
-
-### Integration Tests
-1. End-to-end chat flow testing
-2. Document processing pipeline
-3. Multi-agent coordination
-4. Session management
-5. Error recovery scenarios
-
-### Performance Tests
-- Load testing with concurrent users
-- Document processing throughput
-- Response time benchmarks
-- Memory usage monitoring
-
-## Deployment Plan (Simplified)
-
-### Local Development
-Since ADK is already deployed, local development only requires the TTHC application:
-
-```bash
-# Set environment variable
-export NEXT_PUBLIC_ADK_SERVICE_URL=https://adk-service-418025649220.us-east4.run.app
-
-# Run development server
-cd apps/web
-bun dev
-```
-
-### Docker Compose (Optional for local testing)
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  tthc-web:
-    build: ./apps/web
-    ports:
-      - "3002:3002"
-    environment:
-      - NEXT_PUBLIC_ADK_SERVICE_URL=https://adk-service-418025649220.us-east4.run.app
-      - NEXT_PUBLIC_SERVER_URL=http://localhost:3001
-```
-
-### Staging Environment
-1. Deploy ADK to Cloud Run
-2. Configure Cloud SQL for session storage
-3. Set up Cloud Storage for documents
-4. Deploy TTHC to Vercel/Railway
-5. Configure environment variables
-
-### Production Deployment
-1. Set up production Google Cloud project
-2. Configure Vertex AI credentials
-3. Deploy ADK with auto-scaling
-4. Set up monitoring and alerting
-5. Configure backup and recovery
-
-### Deployment Commands
-```bash
-# Deploy ADK service
-cd ../kieng-gfs-2025-adk
-gcloud run deploy adk-service \
-  --source . \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true"
-
-# Update TTHC environment
-cd apps/web
-echo "ADK_SERVICE_URL=https://adk-service-xxx.run.app" >> .env.production
-npm run build
-npm run deploy
-```
-
-## Timeline & Milestones
-
-### Week 1: Foundation
-- ✅ Docker setup complete
-- ✅ Basic connectivity established
-- ✅ Development environment ready
-
-### Week 2: Core Integration
-- ✅ Chat interface implemented
-- ✅ Streaming responses working
-- ✅ Session management active
-
-### Week 3: Document Processing
-- ✅ File upload functional
-- ✅ Document processing pipeline
-- ✅ Results visualization
-
-### Week 4: Enhancement
-- ✅ Advanced features added
-- ✅ UI/UX improvements
-- ✅ Performance optimization
-
-### Week 5: Production
-- ✅ Security audit complete
-- ✅ Deployment successful
-- ✅ Documentation finalized
-
-## Risk Mitigation
-
-### Technical Risks
-1. **API Compatibility**: Regular testing of ADK API changes
-2. **Performance**: Implement caching and optimize queries
-3. **Scalability**: Use horizontal scaling for ADK service
-4. **Data Loss**: Regular backups and session persistence
-
-### Operational Risks
-1. **Service Downtime**: Implement health checks and auto-restart
-2. **Cost Overruns**: Monitor API usage and set quotas
-3. **Security Breaches**: Regular security audits and updates
-
-## Success Metrics
-
-### Technical Metrics
-- Response time < 2 seconds for chat messages
-- Document processing < 10 seconds
-- 99.9% uptime for service availability
-- < 1% error rate for API calls
-
-### User Metrics
-- User satisfaction score > 4.5/5
-- Average session duration > 5 minutes
-- Document processing success rate > 95%
-- Return user rate > 60%
-
-## Next Steps
-
-1. **Immediate Actions**:
-   - Set up development environment
-   - Create feature branch for integration
-   - Begin Docker configuration
-
-2. **Team Coordination**:
-   - Schedule kick-off meeting
-   - Assign development tasks
-   - Set up daily standups
-
-3. **Documentation**:
-   - Create API documentation
-   - Write user guides
-   - Prepare deployment runbooks
-
-## Appendix
-
-### A. Environment Variables (Updated)
-```bash
-# TTHC Application (.env.local)
-NEXT_PUBLIC_ADK_SERVICE_URL=https://adk-service-418025649220.us-east4.run.app
-NEXT_PUBLIC_MAX_FILE_SIZE=10485760
-NEXT_PUBLIC_ALLOWED_FILE_TYPES=image/*,application/pdf
-
-# Optional: For server-side proxy (if not using direct client-side calls)
-ADK_SERVICE_URL=https://adk-service-418025649220.us-east4.run.app
-
-# Authentication (if using Better Auth)
-AUTH_SECRET=your-auth-secret
-NEXTAUTH_URL=http://localhost:3002
-```
-
-### B. File Structure for New Components
-```
-apps/web/src/
-├── app/
-│   └── adk-chat/
-│       ├── page.tsx
-│       ├── layout.tsx
-│       └── loading.tsx
-├── components/
-│   └── adk/
-│       ├── ChatInterface.tsx
-│       ├── MessageList.tsx
-│       ├── MessageInput.tsx
-│       ├── DocumentUploader.tsx
-│       ├── AgentIndicator.tsx
-│       └── ProcessingStatus.tsx
-└── lib/
-    └── adk/
-        ├── client.ts
-        ├── types.ts
-        └── utils.ts
-```
-
-### C. Implementation Code for Deployed ADK Service
-
-#### 1. ADK API Client
-```typescript
-// apps/web/src/lib/adk/client.ts
-export class ADKClient {
-  private baseUrl = 'https://adk-service-418025649220.us-east4.run.app';
-  private appName = 'orchestrator';
-  
-  constructor(private userId: string) {}
-  
-  async createSession() {
-    const response = await fetch(
-      `${this.baseUrl}/apps/${this.appName}/users/${this.userId}/sessions`,
-      { method: 'POST' }
-    );
-    return response.json();
-  }
-  
-  async sendMessage(sessionId: string, message: string) {
-    const response = await fetch(
-      `${this.baseUrl}/apps/${this.appName}/users/${this.userId}/sessions/${sessionId}/invoke`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
-      }
-    );
-    
-    // Handle streaming response
     const reader = response.body?.getReader();
+    if (!reader) {
+      throw new ADKError('No response body available');
+    }
+
     const decoder = new TextDecoder();
-    
-    return {
-      async *[Symbol.asyncIterator]() {
-        while (true) {
-          const { done, value } = await reader!.read();
-          if (done) break;
-          yield decoder.decode(value);
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          // Process any remaining content in buffer
+          if (buffer.trim()) {
+            const parsed = this.parseSSEChunk(buffer.trim());
+            if (parsed) {
+              yield {
+                chunk: parsed.text,
+                isComplete: parsed.isComplete,
+                metadata: parsed.metadata,
+              };
+            }
+          }
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        // Process complete SSE messages
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (line.trim().startsWith('data: ')) {
+            const jsonStr = line.trim().substring(6); // Remove 'data: ' prefix
+            if (jsonStr && jsonStr !== '[DONE]') {
+              const parsed = this.parseSSEChunk(jsonStr);
+              if (parsed) {
+                yield {
+                  chunk: parsed.text,
+                  isComplete: parsed.isComplete,
+                  metadata: parsed.metadata,
+                };
+              }
+            }
+          }
         }
       }
+    } finally {
+      reader.releaseLock();
+    }
+  } catch (error) {
+    throw this.handleError(error, 'Failed to send message');
+  }
+}
+
+private parseSSEChunk(jsonStr: string): ParsedADKResponse | null {
+  try {
+    const data: ADKSSEChunk = JSON.parse(jsonStr);
+    
+    // Extract text from the first part
+    const text = data.content?.parts?.[0]?.text || '';
+    
+    // Check if this is a complete response
+    const isComplete = !!data.finishReason;
+    
+    return {
+      text,
+      isPartial: data.partial,
+      isComplete,
+      metadata: {
+        finishReason: data.finishReason,
+        usageMetadata: data.usageMetadata,
+        author: data.author,
+        invocationId: data.invocationId,
+      },
     };
+  } catch (error) {
+    console.error('Failed to parse SSE chunk:', error);
+    return null;
   }
 }
 ```
 
-#### 2. Next.js API Route Proxy
+### Step 3: Update AI SDK Provider to Handle ADK Response Format
+
+Modify the `doStream` method in both AI SDK provider implementations:
+
 ```typescript
-// apps/web/src/app/api/adk/chat/route.ts
-import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
-
-const ADK_SERVICE_URL = 'https://adk-service-418025649220.us-east4.run.app';
-
-export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return new Response('Unauthorized', { status: 401 });
+async doStream(options: any) {
+  const { prompt } = options;
+  
+  // Extract the last user message
+  const lastMessage = prompt[prompt.length - 1];
+  if (lastMessage.role !== 'user') {
+    throw new Error('Last message must be from user');
   }
+
+  // Extract text content from the message
+  const content = lastMessage.content;
+  const messageText = Array.isArray(content) 
+    ? content.find((part: any) => part.type === 'text')?.text || ''
+    : content;
+
+  // Create session
+  const session = await this.client.createSession();
+
+  // Convert message format
+  const adkRequest = {
+    message: messageText,
+    metadata: {},
+  };
+
+  // Stream response from ADK
+  const stream = this.client.sendMessage(session.id, adkRequest);
   
-  const { sessionId, message } = await request.json();
-  const userId = session.user.id;
-  
-  // Forward to ADK service
-  const response = await fetch(
-    `${ADK_SERVICE_URL}/apps/orchestrator/users/${userId}/sessions/${sessionId}/invoke`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+  // Convert ADK stream to AI SDK format
+  const textStream = new ReadableStream({
+    async start(controller) {
+      try {
+        for await (const response of stream) {
+          if (response.chunk) {
+            controller.enqueue({
+              type: 'text-delta',
+              delta: response.chunk,
+            });
+          }
+          
+          if (response.isComplete) {
+            controller.enqueue({
+              type: 'finish',
+              usage: response.metadata?.usageMetadata ? {
+                promptTokens: response.metadata.usageMetadata.promptTokenCount || 0,
+                completionTokens: response.metadata.usageMetadata.candidatesTokenCount || 0,
+              } : { promptTokens: 0, completionTokens: 0 },
+              finishReason: response.metadata?.finishReason || 'stop',
+            });
+            controller.close();
+            break;
+          }
+        }
+      } catch (error) {
+        controller.enqueue({
+          type: 'error',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        controller.close();
+      }
     }
-  );
+  });
+
+  return {
+    stream: textStream,
+  };
+}
+```
+
+### Step 4: Update the API Route for Proper Headers
+
+Update the API route in `apps/web/src/app/api/adk/ai-chat/route.ts` to include proper headers for streaming:
+
+```typescript
+export async function POST(request: NextRequest) {
+  const { messages } = await request.json();
   
-  // Return streaming response
-  return new Response(response.body, {
+  // Convert UIMessages to ModelMessages if needed
+  const modelMessages = convertToModelMessages(messages);
+  
+  const result = await streamText({
+    model: ADK_PROVIDER.languageModel('adk-model'),
+    messages: modelMessages,
+  });
+
+  // Return a UI message stream compatible with @ai-sdk/react useChat
+  // Add proper headers for streaming
+  return result.toUIMessageStreamResponse({
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
+      'Transfer-Encoding': 'chunked',
+      'Connection': 'keep-alive',
+      'Content-Encoding': 'none',
     },
   });
 }
 ```
 
-#### 3. Chat Interface Component
-```typescript
-// apps/web/src/app/adk-chat/page.tsx
-'use client';
+## Acceptance Criteria Verification
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+After implementing these changes, we should be able to:
 
-export default function ADKChatPage() {
-  const { data: session } = useSession();
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  useEffect(() => {
-    if (session?.user) {
-      initializeSession();
-    }
-  }, [session]);
-  
-  const initializeSession = async () => {
-    const res = await fetch('/api/adk/session', { method: 'POST' });
-    const data = await res.json();
-    setSessionId(data.id);
-  };
-  
-  const sendMessage = async () => {
-    if (!input.trim() || !sessionId) return;
-    
-    const userMessage = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/adk/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, message: input }),
-      });
-      
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let assistantMessage = { role: 'assistant', content: '' };
-      
-      while (true) {
-        const { done, value } = await reader!.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value);
-        assistantMessage.content += chunk;
-        setMessages(prev => [...prev.slice(0, -1), { ...assistantMessage }]);
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  return (
-    <div className="flex flex-col h-screen">
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`mb-4 ${msg.role === 'user' ? 'text-right' : ''}`}>
-            <div className={`inline-block p-3 rounded-lg ${
-              msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200'
-            }`}>
-              {msg.content}
-            </div>
-          </div>
-        ))}
-        {isLoading && <div>AI is thinking...</div>}
-      </div>
-      
-      <div className="border-t p-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            className="flex-1 p-2 border rounded"
-            placeholder="Ask about birth certificate registration..."
-          />
-          <button
-            onClick={sendMessage}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
+1. **Send a message**: The user should be able to send a message through the chat interface.
+2. **Get streaming response**: The response should be streamed in real-time, with text appearing as it's received.
+3. **Display response correctly**: The complete response should be displayed correctly in the chat interface.
 
----
+## Testing Plan
 
-This integration plan provides a comprehensive roadmap for successfully integrating the ADK agents into the TTHC application, creating a powerful AI-assisted platform for Vietnamese birth certificate registration.
+1. **Unit Testing**: Test each component individually (parser, client, provider).
+2. **Integration Testing**: Test the entire flow from sending a message to receiving the response.
+3. **End-to-End Testing**: Test the complete user experience in the browser.
+
+## Rollback Plan
+
+If any issues arise during implementation, we can:
+1. Revert to the previous implementation
+2. Implement a fallback mechanism
+3. Use a non-streaming approach as a temporary solution
+
+## Timeline
+
+- **Day 1**: Implement ADK response parser and update types
+- **Day 2**: Update ADK client to properly parse SSE chunks
+- **Day 3**: Update AI SDK provider to handle ADK response format
+- **Day 4**: Test and debug the integration
+- **Day 5**: Final testing and documentation
