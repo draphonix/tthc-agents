@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Response } from "@/components/response";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UploadDocumentation } from "@/components/UploadDocumentation";
 
 export default function AIPage() {
 	const [input, setInput] = useState("");
@@ -30,8 +31,15 @@ export default function AIPage() {
 		setInput("");
 	};
 
+	const handleUploadComplete = (data: any) => {
+		// After upload is complete, we can add a message to the chat
+		// The extracted data will be available in the conversation context
+		console.log("Upload complete:", data);
+	};
+
 	return (
-		<div className="grid grid-rows-[1fr_auto] overflow-hidden w-full mx-auto p-4">
+		<div className="grid grid-rows-[auto_1fr_auto] overflow-hidden w-full mx-auto p-4">
+			{/* Content Area */}
 			<div className="overflow-y-auto space-y-4 pb-4">
 				{messages.length === 0 ? (
 					<div className="text-center text-muted-foreground mt-8">
@@ -54,6 +62,29 @@ export default function AIPage() {
 								if (part.type === "text") {
 									return <Response key={index}>{part.text}</Response>;
 								}
+
+								if (part.type === "tool-requestDocumentUpload") {
+									switch (part.state) {
+										case "input-available":
+											return <div key={index}>Loading document upload...</div>;
+										case "output-available":
+											const output = part.output as { reason: string };
+											return (
+												<div key={index}>
+													<UploadDocumentation
+														reason={output.reason}
+														isInChat={true}
+														onUploadComplete={handleUploadComplete}
+													/>
+												</div>
+											);
+										case "output-error":
+											return <div key={index}>Error: {part.errorText}</div>;
+										default:
+											return null;
+									}
+								}
+
 								return null;
 							})}
 						</div>
@@ -62,6 +93,7 @@ export default function AIPage() {
 				<div ref={messagesEndRef} />
 			</div>
 
+			{/* Input Area */}
 			<form
 				onSubmit={handleSubmit}
 				className="w-full flex items-center space-x-2 pt-2 border-t"

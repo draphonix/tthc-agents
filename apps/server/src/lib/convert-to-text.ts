@@ -1,0 +1,132 @@
+/**
+ * File conversion utilities for the UploadDocumentation feature
+ */
+
+import { z } from 'zod';
+
+// Define the schema for extracted document data
+export const DocumentExtractionSchema = z.object({
+  title: z.string().optional(),
+  authors: z.array(z.string()).optional(),
+  publication_date: z.string().optional(),
+  summary: z.string().max(200).optional(),
+  key_value_pairs: z.array(z.object({
+    key: z.string(),
+    value: z.string(),
+  })).optional(),
+});
+
+export type DocumentExtraction = z.infer<typeof DocumentExtractionSchema>;
+
+/**
+ * Convert a file to plain text based on its type
+ */
+export async function convertToPlainText(file: File): Promise<string> {
+  const fileType = file.type;
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+
+  try {
+    // Handle text files directly
+    if (fileType === 'text/plain' || fileType === 'text/markdown' || fileType === 'text/md' || fileExtension === 'txt' || fileExtension === 'md') {
+      return await file.text();
+    }
+
+    // Handle PDF files
+    if (fileType === 'application/pdf' || fileExtension === 'pdf') {
+      return await convertPdfToText(file);
+    }
+
+    // Handle DOCX files
+    if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || fileExtension === 'docx') {
+      return await convertDocxToText(file);
+    }
+
+    throw new Error(`Unsupported file type: ${fileType}`);
+  } catch (error) {
+    console.error('Error converting file to text:', error);
+    throw new Error(`Failed to convert file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Convert PDF to text
+ */
+async function convertPdfToText(file: File): Promise<string> {
+  try {
+    // For MVP, we'll simulate PDF extraction by reading the file as text
+    // In a production environment, you would use a library like 'pdf-parse' or 'pdfjs-dist'
+    
+    // Convert the file to a buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // For MVP, we'll extract some readable text from the PDF
+    // This is a simplified approach that may not work for all PDFs
+    const text = buffer.toString('utf-8', 0, Math.min(buffer.length, 10000));
+    
+    // Filter out non-printable characters and PDF-specific syntax
+    const cleanText = text
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/\\[nrtf]/g, ' ')
+      .replace(/\/[A-Za-z]+\s*/g, ' ')
+      .trim();
+    
+    if (cleanText.length < 50) {
+      return `[PDF Document: ${file.name}]\n\nThis PDF appears to contain binary data or complex formatting. For full text extraction, please install pdf-parse package.`;
+    }
+    
+    return `[PDF Document: ${file.name}]\n\n${cleanText.substring(0, 5000)}${cleanText.length > 5000 ? '...' : ''}`;
+  } catch (error) {
+    console.error('Error converting PDF to text:', error);
+    throw new Error(`Failed to convert PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Convert DOCX to text
+ */
+async function convertDocxToText(file: File): Promise<string> {
+  try {
+    // For MVP, we'll simulate DOCX extraction by reading the file as text
+    // In a production environment, you would use a library like 'mammoth'
+    
+    // Convert the file to a buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // For MVP, we'll extract some readable text from the DOCX
+    // This is a simplified approach that may not work for all DOCX files
+    const text = buffer.toString('utf-8', 0, Math.min(buffer.length, 10000));
+    
+    // Filter out XML tags and extract readable text
+    const cleanText = text
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&[a-z]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (cleanText.length < 50) {
+      return `[DOCX Document: ${file.name}]\n\nThis DOCX appears to contain complex formatting. For full text extraction, please install mammoth package.`;
+    }
+    
+    return `[DOCX Document: ${file.name}]\n\n${cleanText.substring(0, 5000)}${cleanText.length > 5000 ? '...' : ''}`;
+  } catch (error) {
+    console.error('Error converting DOCX to text:', error);
+    throw new Error(`Failed to convert DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Truncate text to fit within token limits
+ */
+export function truncateText(text: string, maxTokens: number = 80000): string {
+  // Rough estimate: 1 token ≈ 4 characters
+  const maxChars = maxTokens * 4;
+  
+  if (text.length <= maxChars) {
+    return text;
+  }
+  
+  return text.substring(0, maxChars) + '\n\n[Content truncated due to length limitations]';
+}
