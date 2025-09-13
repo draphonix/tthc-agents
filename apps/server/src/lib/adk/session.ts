@@ -122,13 +122,85 @@ export class LocalStorageSessionManager implements SessionManager {
 }
 
 /**
+ * Server-side session manager that doesn't rely on localStorage
+ */
+export class ServerSessionManager implements SessionManager {
+  private currentSession: ADKSession | null = null;
+  
+  constructor(private adkClient: ADKClient) {
+    // No localStorage on server side
+  }
+
+  getCurrentSession(): ADKSession | null {
+    return this.currentSession;
+  }
+
+  async createNewSession(): Promise<ADKSession> {
+    try {
+      // Clear any existing session
+      this.clearSession();
+      
+      // Create new session via ADK service
+      const session = await this.adkClient.createSession();
+      
+      // Store the session in memory
+      this.currentSession = session;
+      
+      return session;
+    } catch (error) {
+      console.error('Failed to create new session:', error);
+      throw error;
+    }
+  }
+
+  async restoreSession(sessionId: string): Promise<ADKSession | null> {
+    try {
+      // Try to get session from ADK service
+      const session = await this.adkClient.getSession(sessionId);
+      
+      if (session) {
+        this.currentSession = session;
+      }
+      
+      return session;
+    } catch (error) {
+      console.warn('Failed to restore session:', error);
+      // Clear invalid session
+      this.clearSession();
+      return null;
+    }
+  }
+
+  clearSession(): void {
+    this.currentSession = null;
+  }
+
+  isSessionValid(): boolean {
+    if (!this.currentSession) return false;
+    
+    // Check if session is not too old (24 hours)
+    const sessionAge = Date.now() - (this.currentSession.lastUpdateTime * 1000);
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours in ms
+    
+    if (sessionAge > maxAge) {
+      this.clearSession();
+      return false;
+    }
+    
+    return true;
+  }
+}
+
+/**
  * Hook for managing ADK sessions in React components
  */
 export class ADKSessionHook {
   private sessionManager: SessionManager;
   
-  constructor(adkClient: ADKClient) {
-    this.sessionManager = new LocalStorageSessionManager(adkClient);
+  constructor(adkClient: ADKClient, useLocalStorage: boolean = false) {
+    this.sessionManager = useLocalStorage
+      ? new LocalStorageSessionManager(adkClient)
+      : new ServerSessionManager(adkClient);
   }
 
   async getOrCreateSession(): Promise<ADKSession> {

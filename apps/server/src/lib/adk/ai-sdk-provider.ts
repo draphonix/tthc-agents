@@ -1,5 +1,6 @@
-import { customProvider } from 'ai';
+import { customProvider, type Provider } from 'ai';
 import { ADKClient } from './client';
+import { ADKSessionHook } from './session';
 
 export interface ADKProviderConfig {
   baseUrl?: string;
@@ -10,16 +11,37 @@ export interface ADKProviderConfig {
 class ADKLanguageModel {
   private client: ADKClient;
   private config: ADKProviderConfig;
+  private sessionHook: ADKSessionHook;
+  private accumulatedStateDelta: Record<string, any> = {};
+  private conversationHistory: Array<{role: string, text: string}> = [];
 
   constructor(config: ADKProviderConfig = {}) {
     this.client = new ADKClient('user-placeholder', config);
     this.config = config;
+    // Use ServerSessionManager on the server side
+    this.sessionHook = new ADKSessionHook(this.client, false);
   }
 
   readonly specificationVersion = 'v2' as const;
   readonly provider = 'adk-provider';
   readonly modelId = 'adk-model';
   readonly supportedUrls = {};
+
+  /**
+   * Deep merge helper for stateDelta objects
+   */
+  private deepMerge(target: any, source: any): any {
+    for (const key of Object.keys(source || {})) {
+      const srcVal = source[key];
+      const tgtVal = target[key];
+      if (srcVal && typeof srcVal === 'object' && !Array.isArray(srcVal)) {
+        target[key] = this.deepMerge(tgtVal && typeof tgtVal === 'object' ? tgtVal : {}, srcVal);
+      } else {
+        target[key] = srcVal;
+      }
+    }
+    return target;
+  }
 
   async doGenerate(options: any) {
     const { prompt } = options;
@@ -32,21 +54,36 @@ class ADKLanguageModel {
 
     // Extract text content from the message
     const content = lastMessage.content;
-    const messageText = Array.isArray(content) 
+    const messageText = Array.isArray(content)
       ? content.find((part: any) => part.type === 'text')?.text || ''
       : content;
 
-    // Create session
-    const session = await this.client.createSession();
+    // Get or create session
+    const session = await this.sessionHook.getOrCreateSession();
+    console.log('Using session:', session.id);
+
+    // Add user message to conversation history
+    this.conversationHistory.push({ role: 'user', text: messageText });
+
+    // Build conversationHistory in ADK-friendly shape
+    const conversationHistory = this.conversationHistory.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }],
+    }));
+
+    // Merge accumulated state with conversationHistory
+    const outgoingStateDelta = { ...this.accumulatedStateDelta };
+    outgoingStateDelta.conversationHistory = conversationHistory;
 
     // Convert message format
     const adkRequest = {
       message: messageText,
-      metadata: {},
+      metadata: outgoingStateDelta,
     };
 
     // Get response from ADK (collect all chunks)
     let fullResponse = '';
+    let responseStateDelta = {};
     const stream = this.client.sendMessage(session.id, adkRequest);
     
     for await (const response of stream) {
@@ -54,10 +91,24 @@ class ADKLanguageModel {
         fullResponse += response.chunk;
       }
       
+      // Capture any stateDelta the agent proposes
+      if (response.metadata?.actions?.stateDelta) {
+        responseStateDelta = this.deepMerge(responseStateDelta, response.metadata.actions.stateDelta);
+      }
+      
       if (response.isComplete) {
         break;
       }
     }
+
+    // Accumulate any returned stateDelta for future turns
+    if (Object.keys(responseStateDelta).length > 0) {
+      this.accumulatedStateDelta = this.deepMerge(this.accumulatedStateDelta, responseStateDelta);
+      console.log('Accumulated stateDelta keys:', Object.keys(this.accumulatedStateDelta));
+    }
+
+    // Add assistant reply to history for subsequent turns
+    this.conversationHistory.push({ role: 'assistant', text: fullResponse });
 
     return {
       content: [{ type: 'text', text: fullResponse }] as any,
@@ -82,19 +133,39 @@ class ADKLanguageModel {
       ? content.find((part: any) => part.type === 'text')?.text || ''
       : content;
 
-    // Create session
-    const session = await this.client.createSession();
+    // Get or create session
+    const session = await this.sessionHook.getOrCreateSession();
+    console.log('Using session:', session.id);
+
+    // Add user message to conversation history
+    this.conversationHistory.push({ role: 'user', text: messageText });
+
+    // Build conversationHistory in ADK-friendly shape
+    const conversationHistory = this.conversationHistory.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }],
+    }));
+
+    // Merge accumulated state with conversationHistory
+    const outgoingStateDelta = { ...this.accumulatedStateDelta };
+    outgoingStateDelta.conversationHistory = conversationHistory;
 
     // Convert message format
     const adkRequest = {
       message: messageText,
-      metadata: {},
+      metadata: outgoingStateDelta,
     };
 
     // Stream response from ADK
     const stream = this.client.sendMessage(session.id, adkRequest);
     
     // Convert ADK stream to AI SDK format
+    let fullResponse = '';
+    let responseStateDelta = {};
+    
+    // Store a reference to the deepMerge method to avoid 'this' binding issues
+    const deepMerge = this.deepMerge.bind(this);
+    
     const textStream = new ReadableStream({
       async start(controller) {
         try {
@@ -104,6 +175,12 @@ class ADKLanguageModel {
                 type: 'text-delta',
                 delta: response.chunk,
               });
+              fullResponse += response.chunk;
+            }
+            
+            // Capture any stateDelta the agent proposes
+            if (response.metadata?.actions?.stateDelta) {
+              responseStateDelta = deepMerge(responseStateDelta, response.metadata.actions.stateDelta);
             }
             
             if (response.isComplete) {
@@ -129,13 +206,22 @@ class ADKLanguageModel {
       }
     });
 
+    // Accumulate any returned stateDelta for future turns
+    if (Object.keys(responseStateDelta).length > 0) {
+      this.accumulatedStateDelta = this.deepMerge(this.accumulatedStateDelta, responseStateDelta);
+      console.log('Accumulated stateDelta keys:', Object.keys(this.accumulatedStateDelta));
+    }
+
+    // Add assistant reply to history for subsequent turns
+    this.conversationHistory.push({ role: 'assistant', text: fullResponse });
+
     return {
       stream: textStream,
     };
   }
 }
 
-export function createADKProvider(config: ADKProviderConfig = {}) {
+export function createADKProvider(config: ADKProviderConfig = {}): Provider {
   return customProvider({
     languageModels: {
       'adk-model': new ADKLanguageModel(config),

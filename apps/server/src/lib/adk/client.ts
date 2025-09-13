@@ -217,6 +217,7 @@ export class ADKClient {
           usageMetadata: data.usageMetadata,
           author: data.author,
           invocationId: data.invocationId,
+          actions: data.actions,
         },
       };
     } catch (error) {

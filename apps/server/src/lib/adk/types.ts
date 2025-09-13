@@ -55,6 +55,11 @@ export interface ADKStreamResponse {
     usageMetadata?: any;
     author?: string;
     invocationId?: string;
+    actions?: {
+      stateDelta: Record<string, any>;
+      artifactDelta: Record<string, any>;
+      requestedAuthConfigs: Record<string, any>;
+    };
   };
 }
 
@@ -135,5 +140,10 @@ export interface ParsedADKResponse {
     usageMetadata?: any;
     author?: string;
     invocationId?: string;
+    actions?: {
+      stateDelta: Record<string, any>;
+      artifactDelta: Record<string, any>;
+      requestedAuthConfigs: Record<string, any>;
+    };
   };
 }
