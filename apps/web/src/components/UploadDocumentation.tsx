@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { TextStreamChatTransport } from "ai";
 import { Upload, FileText, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,8 +34,8 @@ export function UploadDocumentation({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, setMessages } = useChat({
-    transport: new DefaultChatTransport({
+  const { messages, setMessages, sendMessage } = useChat({
+    transport: new TextStreamChatTransport({
       api: `${process.env.NEXT_PUBLIC_SERVER_URL}/ai/extract`,
     }),
     onFinish: (message) => {
@@ -106,11 +106,14 @@ export function UploadDocumentation({
     // Clear previous messages
     setMessages([]);
     
-    // Create form data
-    const formData = new FormData();
-    formData.append('file', files[0]);
+    // Get the file
+    const file = files[0];
     
     try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', file);
+      
       // Send the file to the extraction endpoint using fetch directly
       const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/ai/extract`, {
         method: 'POST',
@@ -121,17 +124,36 @@ export function UploadDocumentation({
         throw new Error(`Upload failed: ${response.statusText}`);
       }
       
-      // The response will be streamed through the useChat hook
-      // We'll add a placeholder message to indicate processing started
+      // Add a placeholder message to indicate processing started
       setMessages([{
         id: Date.now().toString(),
         role: "assistant",
         parts: [{ type: "text", text: "Processing document..." }],
       }]);
       
-      // The useChat hook will handle the streaming response automatically
-      // We just need to wait for it to complete
-      // The onFinish and onError callbacks will handle the final state
+      // Since we're using TextStreamChatTransport, we need to manually handle the stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      
+      if (reader) {
+        let result = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value);
+          result += chunk;
+          
+          // Update the message with the accumulated result
+          setMessages([{
+            id: Date.now().toString(),
+            role: "assistant",
+            parts: [{ type: "text", text: result }],
+          }]);
+        }
+      }
+      
+      setIsUploading(false);
       
     } catch (error) {
       setIsUploading(false);
