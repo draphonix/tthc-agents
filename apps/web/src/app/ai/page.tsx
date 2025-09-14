@@ -35,6 +35,12 @@ export default function AIPage() {
 		// After upload is complete, we can add a message to the chat
 		// The extracted data will be available in the conversation context
 		console.log("Upload complete:", data);
+		
+		// Send a message to continue the workflow based on the extracted data
+		// This will trigger the AI to analyze the extracted information and continue the scenario-based approach
+		sendMessage({
+			text: "I've uploaded the document. Please analyze the information and let me know what's needed next."
+		});
 	};
 
 	return (
@@ -43,7 +49,7 @@ export default function AIPage() {
 			<div className="overflow-y-auto space-y-4 pb-4">
 				{messages.length === 0 ? (
 					<div className="text-center text-muted-foreground mt-8">
-						Ask me anything to get started!
+						Welcome! I'll help you register your baby's birth in Vietnam. Most babies are born in hospitals with birth certificates. Do you have your baby's birth certificate?
 					</div>
 				) : (
 					messages.map((message) => (
