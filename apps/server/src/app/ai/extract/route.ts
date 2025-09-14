@@ -1,6 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { streamText, tool } from "ai";
-import { convertToPlainText, truncateText } from "@/lib/convert-to-text";
+import { convertToPlainText, truncateText, containsImage, extractImageData } from "@/lib/convert-to-text";
 import { extractionSystemPrompt } from "@/lib/extraction-prompt";
 import { z } from "zod";
 
@@ -22,7 +22,41 @@ export async function POST(req: Request) {
     // Convert file to plain text
     const text = await convertToPlainText(file);
     
-    // Truncate text to fit within token limits
+    // Check if the file is an image
+    if (containsImage(text)) {
+      const imageData = extractImageData(text);
+      if (!imageData) {
+        return new Response(JSON.stringify({ error: "Failed to process image data" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      // Stream the extraction process for images using vision capabilities
+      const result = streamText({
+        model: google("gemini-2.5-pro"),
+        system: extractionSystemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Please extract information from this document image (${imageData.fileName}) relevant to Vietnamese birth registration.`,
+              },
+              {
+                type: "image",
+                image: imageData.dataUrl,
+              },
+            ],
+          },
+        ],
+      });
+
+      return result.toTextStreamResponse();
+    }
+    
+    // For non-image files, truncate text to fit within token limits
     const truncatedText = truncateText(text);
 
     // Stream the extraction process

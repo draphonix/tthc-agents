@@ -82,6 +82,9 @@ export function UploadDocumentation({
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
       'text/markdown': ['.md', '.markdown'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
     },
     maxSize: 10 * 1024 * 1024, // 10 MB
     multiple: false, // MVP: single file only
@@ -172,7 +175,7 @@ export function UploadDocumentation({
                 Drag and drop a file here, or click to browse
               </p>
               <p className={`text-muted-foreground ${isInChat ? 'text-xs' : 'text-xs'}`}>
-                Supported formats: PDF, DOCX, TXT, MD (max 10MB)
+                Supported formats: PDF, DOCX, TXT, MD, Images (max 10MB)
               </p>
             </div>
           </CardContent>

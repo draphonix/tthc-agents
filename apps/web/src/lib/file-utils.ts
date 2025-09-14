@@ -8,6 +8,10 @@ export const ALLOWED_FILE_TYPES = [
   'text/plain',
   'text/markdown',
   'text/md',
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
 ] as const;
 
 export type AllowedFileType = typeof ALLOWED_FILE_TYPES[number];
@@ -72,7 +76,7 @@ export function validateFile(file: File): { isValid: boolean; error?: string } {
   if (!isFileTypeAllowed(file.type)) {
     return {
       isValid: false,
-      error: `File type ${file.type} is not supported. Please upload PDF, DOCX, TXT, or MD files.`,
+      error: `File type ${file.type} is not supported. Please upload PDF, DOCX, TXT, MD, or image files (JPEG, PNG, WebP).`,
     };
   }
   

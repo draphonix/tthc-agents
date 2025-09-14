@@ -54,6 +54,11 @@ export async function convertToPlainText(file: File): Promise<string> {
       return await convertDocxToText(file);
     }
 
+    // Handle image files
+    if (fileType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(fileExtension || '')) {
+      return await convertImageToText(file);
+    }
+
     throw new Error(`Unsupported file type: ${fileType}`);
   } catch (error) {
     console.error('Error converting file to text:', error);
@@ -128,6 +133,51 @@ async function convertDocxToText(file: File): Promise<string> {
     console.error('Error converting DOCX to text:', error);
     throw new Error(`Failed to convert DOCX: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Convert image to text using gemini-2.5-pro's vision capabilities
+ */
+async function convertImageToText(file: File): Promise<string> {
+  try {
+    // Convert image to base64
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Image = buffer.toString('base64');
+    
+    // Get the MIME type
+    const mimeType = file.type || 'image/jpeg';
+    
+    // Create a data URL
+    const dataUrl = `data:${mimeType};base64,${base64Image}`;
+    
+    // For now, we'll return a placeholder that indicates this is an image
+    // The actual image processing will happen in the extract route
+    return `[IMAGE:${file.name}:${dataUrl}]`;
+  } catch (error) {
+    console.error('Error converting image to text:', error);
+    throw new Error(`Failed to convert image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Check if text contains an image marker
+ */
+export function containsImage(text: string): boolean {
+  return text.startsWith('[IMAGE:');
+}
+
+/**
+ * Extract image data from text
+ */
+export function extractImageData(text: string): { fileName: string; dataUrl: string } | null {
+  const imageMatch = text.match(/^\[IMAGE:([^:]+):(.+)\]$/);
+  if (!imageMatch) return null;
+  
+  return {
+    fileName: imageMatch[1],
+    dataUrl: imageMatch[2],
+  };
 }
 
 /**
