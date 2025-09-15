@@ -220,35 +220,7 @@ export function AssessmentResultsArtifact({ artifact }: AssessmentResultsArtifac
         </CardContent>
       </Card>
 
-      {/* LLM Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg vietnam-accent">
-            Phân tích chi tiết / Detailed Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          {isProcessing ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="text-center">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-blue-500" />
-                <p className="text-sm text-muted-foreground">
-                  Đang phân tích tình huống của bạn...
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Analyzing your situation...
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="prose prose-sm max-w-none">
-              <div className="whitespace-pre-wrap text-xs leading-relaxed">
-                {analysisResult}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
