@@ -24,6 +24,17 @@ interface UploadDocumentationProps {
   collapsed?: boolean;
   onCollapseChange?: (collapsed: boolean) => void;
   documentName?: string;
+  
+  // New props for external state management
+  files?: File[];
+  isUploading?: boolean;
+  error?: string | null;
+  messages?: any[];
+  onFilesChange?: (files: File[]) => void;
+  onUploadingChange?: (isUploading: boolean) => void;
+  onErrorChange?: (error: string | null) => void;
+  onMessagesChange?: (messages: any[]) => void;
+  onReset?: () => void;
 }
 
 export function UploadDocumentation({
@@ -33,19 +44,79 @@ export function UploadDocumentation({
   isInChat = false,
   collapsed = false,
   onCollapseChange,
-  documentName
+  documentName,
+  // External state props
+  files: externalFiles,
+  isUploading: externalIsUploading,
+  error: externalError,
+  messages: externalMessages,
+  onFilesChange,
+  onUploadingChange,
+  onErrorChange,
+  onMessagesChange,
+  onReset
 }: UploadDocumentationProps) {
-  const [files, setFiles] = useState<File[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Use external state if provided, otherwise use internal state
+  const useExternalState = externalFiles !== undefined &&
+                          externalIsUploading !== undefined &&
+                          externalError !== undefined &&
+                          externalMessages !== undefined &&
+                          onFilesChange &&
+                          onUploadingChange &&
+                          onErrorChange &&
+                          onMessagesChange;
+  
+  const [internalFiles, setInternalFiles] = useState<File[]>([]);
+  const [internalIsUploading, setInternalIsUploading] = useState(false);
+  const [internalError, setInternalError] = useState<string | null>(null);
+  const [internalMessages, setInternalMessages] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Use external or internal state
+  const currentFiles = useExternalState ? externalFiles! : internalFiles;
+  const currentIsUploading = useExternalState ? externalIsUploading! : internalIsUploading;
+  const currentError = useExternalState ? externalError! : internalError;
+  const currentMessages = useExternalState ? externalMessages! : internalMessages;
+  
+  // Use external or internal state setters
+  const setCurrentFiles = (files: File[] | ((prev: File[]) => File[])) => {
+    if (useExternalState) {
+      onFilesChange!(typeof files === 'function' ? files(internalFiles) : files);
+    } else {
+      setInternalFiles(files);
+    }
+  };
+  
+  const setCurrentIsUploading = (isUploading: boolean) => {
+    if (useExternalState) {
+      onUploadingChange!(isUploading);
+    } else {
+      setInternalIsUploading(isUploading);
+    }
+  };
+  
+  const setCurrentError = (error: string | null) => {
+    if (useExternalState) {
+      onErrorChange!(error);
+    } else {
+      setInternalError(error);
+    }
+  };
+  
+  const setCurrentMessages = (messages: any[]) => {
+    if (useExternalState) {
+      onMessagesChange!(messages);
+    } else {
+      setInternalMessages(messages);
+    }
+  };
 
-  const { messages, setMessages, sendMessage } = useChat({
+  const { messages: chatMessages, setMessages: setChatMessages, sendMessage } = useChat({
     transport: new TextStreamChatTransport({
       api: `${process.env.NEXT_PUBLIC_SERVER_URL}/ai/extract`,
     }),
     onFinish: (message) => {
-      setIsUploading(false);
+      setCurrentIsUploading(false);
       if (onUploadComplete) {
         onUploadComplete(message);
       }
@@ -55,13 +126,13 @@ export function UploadDocumentation({
       }
     },
     onError: (error) => {
-      setIsUploading(false);
-      setError(error.message || "Failed to process document");
+      setCurrentIsUploading(false);
+      setCurrentError(error.message || "Failed to process document");
     },
   });
 
   const onDrop = (acceptedFiles: File[]) => {
-    setError(null);
+    setCurrentError(null);
     
     // Validate each file
     const validFiles: File[] = [];
@@ -77,11 +148,11 @@ export function UploadDocumentation({
     });
     
     if (invalidFiles.length > 0) {
-      setError(invalidFiles.join(". "));
+      setCurrentError(invalidFiles.join(". "));
     }
     
     if (validFiles.length > 0) {
-      setFiles(validFiles);
+      setCurrentFiles(validFiles);
     }
   };
 
@@ -101,23 +172,23 @@ export function UploadDocumentation({
   });
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    setCurrentFiles((prev: File[]) => prev.filter((_: File, i: number) => i !== index));
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) {
-      setError("Please select a file to upload");
+    if (currentFiles.length === 0) {
+      setCurrentError("Please select a file to upload");
       return;
     }
 
-    setIsUploading(true);
-    setError(null);
+    setCurrentIsUploading(true);
+    setCurrentError(null);
     
     // Clear previous messages
-    setMessages([]);
+    setCurrentMessages([]);
     
     // Get the file
-    const file = files[0];
+    const file = currentFiles[0];
     
     try {
       // Create form data
@@ -135,7 +206,7 @@ export function UploadDocumentation({
       }
       
       // Add a placeholder message to indicate processing started
-      setMessages([{
+      setCurrentMessages([{
         id: Date.now().toString(),
         role: "assistant",
         parts: [{ type: "text", text: "Processing document..." }],
@@ -155,7 +226,7 @@ export function UploadDocumentation({
           result += chunk;
           
           // Update the message with the accumulated result
-          setMessages([{
+          setCurrentMessages([{
             id: Date.now().toString(),
             role: "assistant",
             parts: [{ type: "text", text: result }],
@@ -163,18 +234,22 @@ export function UploadDocumentation({
         }
       }
       
-      setIsUploading(false);
+      setCurrentIsUploading(false);
       
     } catch (error) {
-      setIsUploading(false);
-      setError(error instanceof Error ? error.message : "Failed to upload file");
+      setCurrentIsUploading(false);
+      setCurrentError(error instanceof Error ? error.message : "Failed to upload file");
     }
   };
 
   const resetUpload = () => {
-    setFiles([]);
-    setError(null);
-    setMessages([]);
+    if (useExternalState && onReset) {
+      onReset();
+    } else {
+      setCurrentFiles([]);
+      setCurrentError(null);
+      setCurrentMessages([]);
+    }
     // Expand when resetting
     if (onCollapseChange) {
       onCollapseChange(false);
@@ -184,7 +259,7 @@ export function UploadDocumentation({
   return (
     <div className={`space-y-4 ${className}`}>
       {/* Document header when collapsed */}
-      {collapsed && messages.length > 0 && (
+      {collapsed && currentMessages.length > 0 && (
         <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
           <div className="flex items-center space-x-2">
             <FileText className="h-5 w-5 text-muted-foreground" />
@@ -211,7 +286,7 @@ export function UploadDocumentation({
       )}
       
       {/* File Upload Area */}
-      {files.length === 0 && !collapsed && (
+      {currentFiles.length === 0 && !collapsed && (
         <Card>
           <CardContent className={`p-6 ${isInChat ? 'p-4' : ''}`}>
             <div
@@ -239,12 +314,12 @@ export function UploadDocumentation({
       )}
 
       {/* File List */}
-      {files.length > 0 && !collapsed && (
+      {currentFiles.length > 0 && !collapsed && (
         <Card>
           <CardContent className="p-4">
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Selected File</h3>
-              {files.map((file, index) => (
+              {currentFiles.map((file, index) => (
                 <div
                   key={index}
                   className="flex items-center justify-between p-2 border rounded"
@@ -264,7 +339,7 @@ export function UploadDocumentation({
                     variant="ghost"
                     size="icon"
                     onClick={() => removeFile(index)}
-                    disabled={isUploading}
+                    disabled={currentIsUploading}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -273,11 +348,11 @@ export function UploadDocumentation({
             </div>
             
             <div className="flex justify-end space-x-2 mt-4">
-              <Button variant="outline" onClick={resetUpload} disabled={isUploading}>
+              <Button variant="outline" onClick={resetUpload} disabled={currentIsUploading}>
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={isUploading}>
-                {isUploading ? (
+              <Button onClick={handleUpload} disabled={currentIsUploading}>
+                {currentIsUploading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -292,22 +367,22 @@ export function UploadDocumentation({
       )}
 
       {/* Error Display */}
-      {error && (
+      {currentError && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="p-4">
-            <p className="text-sm text-destructive">{error}</p>
+            <p className="text-sm text-destructive">{currentError}</p>
           </CardContent>
         </Card>
       )}
 
       {/* Results Display */}
-      {messages.length > 0 && !collapsed && (
+      {currentMessages.length > 0 && !collapsed && (
         <Card>
           <CardContent className="p-4">
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Extracted Information</h3>
               <div className="space-y-4">
-                {messages.map((message) => (
+                {currentMessages.map((message) => (
                   <div
                     key={message.id}
                     className={`p-3 rounded-lg ${
@@ -319,7 +394,7 @@ export function UploadDocumentation({
                     <p className="text-sm font-semibold mb-1">
                       {message.role === "user" ? "You" : "AI Assistant"}
                     </p>
-                    {message.parts?.map((part, index) => {
+                    {message.parts?.map((part: any, index: number) => {
                       if (part.type === "text") {
                         return <Response key={index}>{part.text}</Response>;
                       }

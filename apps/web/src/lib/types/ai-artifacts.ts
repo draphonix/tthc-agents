@@ -24,6 +24,13 @@ export interface AssessmentResultsData {
   };
 }
 
+export interface DocumentUploadState {
+  files: File[];
+  isUploading: boolean;
+  error: string | null;
+  messages: any[]; // Using any for now, could be typed more specifically
+}
+
 export interface DocumentSubmissionData {
   documents: Array<{ name: string; nameVn: string; required: boolean } | string>;
   note?: string;

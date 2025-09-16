@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible } from "@/components/ui/collapsible";
 import { UploadDocumentation } from "@/components/UploadDocumentation";
-import type { AIAssistantArtifact } from "@/lib/types/ai-artifacts";
+import type { AIAssistantArtifact, DocumentUploadState } from "@/lib/types/ai-artifacts";
 import type { Document } from "@/lib/types";
 
 interface DocumentSubmissionArtifactProps {
@@ -23,11 +23,86 @@ export function DocumentSubmissionArtifact({ artifact }: DocumentSubmissionArtif
   // State to track collapsed state for each document
   const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({});
   
+  // State to track upload state for each document
+  const [uploadStates, setUploadStates] = useState<Record<number, DocumentUploadState>>({});
+  
   // Handle collapse state change for a document
   const handleCollapseChange = (index: number, collapsed: boolean) => {
     setCollapsedStates(prev => ({
       ...prev,
       [index]: collapsed
+    }));
+  };
+
+  // Initialize upload state for a document
+  const initUploadState = (index: number) => {
+    if (!uploadStates[index]) {
+      setUploadStates(prev => ({
+        ...prev,
+        [index]: {
+          files: [],
+          isUploading: false,
+          error: null,
+          messages: []
+        }
+      }));
+    }
+  };
+
+  // Update files for a document
+  const updateFiles = (index: number, files: File[]) => {
+    setUploadStates(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        files
+      }
+    }));
+  };
+
+  // Update uploading status for a document
+  const setUploading = (index: number, isUploading: boolean) => {
+    setUploadStates(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        isUploading
+      }
+    }));
+  };
+
+  // Update error for a document
+  const setError = (index: number, error: string | null) => {
+    setUploadStates(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        error
+      }
+    }));
+  };
+
+  // Update messages for a document
+  const setMessages = (index: number, messages: any[]) => {
+    setUploadStates(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        messages
+      }
+    }));
+  };
+
+  // Reset upload state for a document
+  const resetUploadState = (index: number) => {
+    setUploadStates(prev => ({
+      ...prev,
+      [index]: {
+        files: [],
+        isUploading: false,
+        error: null,
+        messages: []
+      }
     }));
   };
 
@@ -69,6 +144,17 @@ export function DocumentSubmissionArtifact({ artifact }: DocumentSubmissionArtif
                     documentName={doc.name}
                     collapsed={collapsedStates[idx] || false}
                     onCollapseChange={(collapsed) => handleCollapseChange(idx, collapsed)}
+                    // Pass state as props
+                    files={uploadStates[idx]?.files || []}
+                    isUploading={uploadStates[idx]?.isUploading || false}
+                    error={uploadStates[idx]?.error || null}
+                    messages={uploadStates[idx]?.messages || []}
+                    // Pass state update handlers
+                    onFilesChange={(files: File[]) => updateFiles(idx, files)}
+                    onUploadingChange={(isUploading: boolean) => setUploading(idx, isUploading)}
+                    onErrorChange={(error: string | null) => setError(idx, error)}
+                    onMessagesChange={(messages: any[]) => setMessages(idx, messages)}
+                    onReset={() => resetUploadState(idx)}
                   />
                 </Collapsible>
               ))}
