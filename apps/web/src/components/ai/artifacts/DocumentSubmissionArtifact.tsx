@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible } from "@/components/ui/collapsible";
+import { UploadDocumentation } from "@/components/UploadDocumentation";
 import type { AIAssistantArtifact } from "@/lib/types/ai-artifacts";
 import type { Document } from "@/lib/types";
 
@@ -17,6 +20,17 @@ export function DocumentSubmissionArtifact({ artifact }: DocumentSubmissionArtif
     return d;
   });
 
+  // State to track collapsed state for each document
+  const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({});
+  
+  // Handle collapse state change for a document
+  const handleCollapseChange = (index: number, collapsed: boolean) => {
+    setCollapsedStates(prev => ({
+      ...prev,
+      [index]: collapsed
+    }));
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -31,20 +45,32 @@ export function DocumentSubmissionArtifact({ artifact }: DocumentSubmissionArtif
               Chưa có danh sách tài liệu từ kết quả tra cứu. Hãy thử lại hoặc yêu cầu AI liệt kê rõ các tài liệu cần nộp.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {docs.map((doc, idx) => (
-                <div
+                <Collapsible
                   key={idx}
-                  className={`flex items-start gap-3 p-3 rounded-md border ${doc.required ? "border-amber-300 bg-amber-50" : "border-border"}`}
+                  title={
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${doc.required ? "border-amber-400" : "border-border"}`}>
+                        {doc.required ? <span className="text-[10px]">!</span> : null}
+                      </div>
+                      <div>
+                        <div className="text-sm font-medium">{doc.name}</div>
+                        <div className="text-xs text-muted-foreground">{doc.nameVn}</div>
+                      </div>
+                    </div>
+                  }
+                  defaultOpen={false}
+                  className={doc.required ? "border-amber-300 bg-amber-50" : ""}
                 >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 ${doc.required ? "border-amber-400" : "border-border"}`}>
-                    {doc.required ? <span className="text-[10px]">!</span> : null}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{doc.name}</div>
-                    <div className="text-xs text-muted-foreground">{doc.nameVn}</div>
-                  </div>
-                </div>
+                  <UploadDocumentation
+                    reason={`upload ${doc.name}`}
+                    isInChat={true}
+                    documentName={doc.name}
+                    collapsed={collapsedStates[idx] || false}
+                    onCollapseChange={(collapsed) => handleCollapseChange(idx, collapsed)}
+                  />
+                </Collapsible>
               ))}
             </div>
           )}

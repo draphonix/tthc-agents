@@ -21,13 +21,19 @@ interface UploadDocumentationProps {
   className?: string;
   reason?: string;
   isInChat?: boolean;
+  collapsed?: boolean;
+  onCollapseChange?: (collapsed: boolean) => void;
+  documentName?: string;
 }
 
 export function UploadDocumentation({
   onUploadComplete,
   className = "",
   reason = "",
-  isInChat = false
+  isInChat = false,
+  collapsed = false,
+  onCollapseChange,
+  documentName
 }: UploadDocumentationProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -42,6 +48,10 @@ export function UploadDocumentation({
       setIsUploading(false);
       if (onUploadComplete) {
         onUploadComplete(message);
+      }
+      // Auto-collapse after successful upload
+      if (onCollapseChange) {
+        onCollapseChange(true);
       }
     },
     onError: (error) => {
@@ -165,19 +175,43 @@ export function UploadDocumentation({
     setFiles([]);
     setError(null);
     setMessages([]);
+    // Expand when resetting
+    if (onCollapseChange) {
+      onCollapseChange(false);
+    }
   };
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* Document header when collapsed */}
+      {collapsed && messages.length > 0 && (
+        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+          <div className="flex items-center space-x-2">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">{documentName || "Uploaded Document"}</p>
+              <p className="text-xs text-muted-foreground">Click to view extracted information</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onCollapseChange?.(false)}
+          >
+            View
+          </Button>
+        </div>
+      )}
+      
       {/* Reason for upload */}
-      {reason && (
+      {reason && !collapsed && (
         <div className="text-sm text-muted-foreground mb-2">
           I need to see your document to {reason}. Please upload it below.
         </div>
       )}
       
       {/* File Upload Area */}
-      {files.length === 0 && (
+      {files.length === 0 && !collapsed && (
         <Card>
           <CardContent className={`p-6 ${isInChat ? 'p-4' : ''}`}>
             <div
@@ -205,7 +239,7 @@ export function UploadDocumentation({
       )}
 
       {/* File List */}
-      {files.length > 0 && (
+      {files.length > 0 && !collapsed && (
         <Card>
           <CardContent className="p-4">
             <div className="space-y-2">
@@ -267,7 +301,7 @@ export function UploadDocumentation({
       )}
 
       {/* Results Display */}
-      {messages.length > 0 && (
+      {messages.length > 0 && !collapsed && (
         <Card>
           <CardContent className="p-4">
             <div className="space-y-4">
