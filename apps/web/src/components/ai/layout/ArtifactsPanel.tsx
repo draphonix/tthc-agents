@@ -14,6 +14,7 @@ import type { AssessmentAnswers } from "@/lib/types";
 import type { AIAssistantArtifact } from "@/lib/types/ai-artifacts";
 import { AssessmentWizardArtifact } from "@/components/ai/artifacts/AssessmentWizardArtifact";
 import { AssessmentResultsArtifact } from "@/components/ai/artifacts/AssessmentResultsArtifact";
+import { DocumentSubmissionArtifact } from "@/components/ai/artifacts/DocumentSubmissionArtifact";
 
 interface ArtifactsPanelProps {
   artifacts: AIAssistantArtifact[];
@@ -28,6 +29,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: A
         return <AssessmentWizardArtifact artifact={artifact} onAssessmentComplete={onAssessmentComplete} />;
       case "assessment-results":
         return <AssessmentResultsArtifact artifact={artifact} />;
+      case "document-submission":
+        return <DocumentSubmissionArtifact artifact={artifact} />;
       default:
         return <div>Unknown artifact type: {artifact.kind}</div>;
     }
@@ -39,6 +42,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: A
         return "Đánh giá thông tin / Information Assessment";
       case "assessment-results":
         return "Kết quả đánh giá / Assessment Results";
+      case "document-submission":
+        return "Nộp tài liệu / Document Submission";
       default:
         return "AI Assistant Artifact";
     }
@@ -50,6 +55,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: A
         return "Vui lòng trả lời các câu hỏi để xác định tình huống của bạn";
       case "assessment-results":
         return "Kết quả phân tích và hướng dẫn tiếp theo";
+      case "document-submission":
+        return "Danh sách tài liệu cần nộp dựa trên kết quả tra cứu";
       default:
         return "AI generated content";
     }

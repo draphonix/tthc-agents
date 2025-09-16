@@ -1,6 +1,6 @@
 import type { AssessmentAnswers } from "@/lib/types";
 
-export type ArtifactKind = "assessment-wizard" | "assessment-results";
+export type ArtifactKind = "assessment-wizard" | "assessment-results" | "document-submission";
 
 export interface AIAssistantArtifact {
   id: string;
@@ -22,4 +22,9 @@ export interface AssessmentResultsData {
     timeline?: string;
     authority?: string;
   };
+}
+
+export interface DocumentSubmissionData {
+  documents: Array<{ name: string; nameVn: string; required: boolean } | string>;
+  note?: string;
 }

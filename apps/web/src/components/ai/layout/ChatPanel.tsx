@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UploadDocumentation } from "@/components/UploadDocumentation";
 import { useChatSend } from "@/components/ai/chat/ChatContext";
+import type { Document } from "@/lib/types";
 import {
   Artifact,
   ArtifactAction,
@@ -22,9 +23,10 @@ interface ChatPanelProps {
   className?: string;
   messages: UIMessage[];
   onUploadComplete?: (data: any) => void;
+  onRequestDocumentSubmission?: (documents: Array<{ name: string; nameVn: string; required: boolean } | string>, note?: string) => void;
 }
 
-export function ChatPanel({ className, messages, onUploadComplete }: ChatPanelProps) {
+export function ChatPanel({ className, messages, onUploadComplete, onRequestDocumentSubmission }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const sendMessage = useChatSend();
 
@@ -131,6 +133,12 @@ export function ChatPanel({ className, messages, onUploadComplete }: ChatPanelPr
                               answer: string;
                               citations?: Array<{ title: string; source: string; uri: string }>;
                               source?: string;
+                              documents?: Array<Document | string>;
+                              note?: string;
+                            };
+                            const handleReadyToSubmit = () => {
+                              const documents = output.documents ?? [];
+                              onRequestDocumentSubmission?.(documents, output.note);
                             };
                             return (
                               <div key={index} className="p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -159,6 +167,11 @@ export function ChatPanel({ className, messages, onUploadComplete }: ChatPanelPr
                                     </div>
                                   </div>
                                 )}
+                                <div className="mt-3">
+                                  <Button size="sm" variant="default" onClick={handleReadyToSubmit}>
+                                    Nộp Tài Liệu
+                                  </Button>
+                                </div>
                               </div>
                             );
                           case "output-error":
