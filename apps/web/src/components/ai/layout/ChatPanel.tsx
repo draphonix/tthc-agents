@@ -123,8 +123,8 @@ export function ChatPanel({ className, messages, onUploadComplete }: ChatPanelPr
                           <div className="text-sm font-medium text-green-800 mb-3">
                             📚 Thông tin từ cơ sở dữ liệu pháp luật
                           </div>
-                          <div className="text-sm text-gray-800 mb-3 whitespace-pre-wrap">
-                            {output.answer}
+                          <div className="text-sm text-gray-800 mb-3">
+                            <Response>{output.answer}</Response>
                           </div>
                           {output.citations && output.citations.length > 0 && (
                             <div className="border-t border-green-200 pt-3">
