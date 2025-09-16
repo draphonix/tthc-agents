@@ -33,14 +33,14 @@ export function AIPageLayout({ children }: AIPageLayoutProps) {
       </div>
 
       {/* Desktop split view and mobile single view */}
-      <div className="grid h-screen lg:grid-cols-[minmax(360px,2fr)_3fr] gap-0">
+      <div className="grid h-[calc(100vh-4rem)] lg:grid-cols-[minmax(360px,2fr)_3fr] gap-0">
         {/* Chat Panel */}
-        <div className={`${activeTab === 'chat' ? 'block' : 'hidden'} lg:block`}>
+        <div className={`${activeTab === 'chat' ? 'block' : 'hidden'} lg:block h-full overflow-hidden`}>
           {childrenArray[0]}
         </div>
         
         {/* Artifacts Panel */}
-        <div className={`${activeTab === 'artifact' ? 'block' : 'hidden'} lg:block`}>
+        <div className={`${activeTab === 'artifact' ? 'block' : 'hidden'} lg:block h-full overflow-hidden`}>
           {childrenArray[1]}
         </div>
       </div>

@@ -67,21 +67,23 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: A
   const currentArtifact = artifacts[artifacts.length - 1];
 
   return (
-    <div className={`overflow-y-auto border-l bg-muted/50 p-4 ${className}`}>
-      <Artifact>
-        <ArtifactHeader>
-          <div>
-            <ArtifactTitle>{getArtifactTitle(currentArtifact)}</ArtifactTitle>
-            <ArtifactDescription>{getArtifactDescription(currentArtifact)}</ArtifactDescription>
-          </div>
-          <ArtifactActions>
-            <ArtifactAction icon={Copy} label="Copy" tooltip="Sao chép nội dung" />
-          </ArtifactActions>
-        </ArtifactHeader>
-        <ArtifactContent>
-          {renderArtifactContent(currentArtifact)}
-        </ArtifactContent>
-      </Artifact>
+    <div className={`h-full flex flex-col border-l bg-muted/50 ${className}`}>
+      <div className="p-4 h-full">
+        <Artifact className="h-full flex flex-col">
+          <ArtifactHeader>
+            <div>
+              <ArtifactTitle>{getArtifactTitle(currentArtifact)}</ArtifactTitle>
+              <ArtifactDescription>{getArtifactDescription(currentArtifact)}</ArtifactDescription>
+            </div>
+            <ArtifactActions>
+              <ArtifactAction icon={Copy} label="Copy" tooltip="Sao chép nội dung" />
+            </ArtifactActions>
+          </ArtifactHeader>
+          <ArtifactContent className="flex-1 overflow-auto">
+            {renderArtifactContent(currentArtifact)}
+          </ArtifactContent>
+        </Artifact>
+      </div>
     </div>
   );
 }
