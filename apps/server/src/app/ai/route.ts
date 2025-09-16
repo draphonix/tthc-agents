@@ -1,7 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { streamText, type UIMessage, convertToModelMessages, tool } from "ai";
 import { z } from "zod";
-import { queryRAGEngine } from "../../lib/vertex-rag";
+import { queryRAGEngineStructured, queryRAGEngine } from "../../lib/vertex-rag";
 
 // Define the schema for assessment answers
 const assessmentAnswersSchema = z.object({
@@ -13,6 +13,8 @@ const assessmentAnswersSchema = z.object({
 });
 
 export const maxDuration = 30;
+
+
 
 export async function POST(req: Request) {
 	const { messages }: { messages: UIMessage[] } = await req.json();
@@ -127,23 +129,23 @@ You focus exclusively on Vietnam birth certificate registration, considering fac
 					question: z.string().describe('The specific, detailed question to ask the knowledge base about Vietnamese birth registration. Be specific about the situation, requirements, or procedure you need information about. Examples: "What documents are required for unmarried parents to register a birth?", "What is the timeline for birth registration in Vietnam?", "What are the fees for birth certificate registration?"'),
 				}),
 				execute: async ({ question }: { question: string }) => {
-					console.log('🤖 [AGENT] Agent is calling RAG tool with question:', {
-						question: question.substring(0, 100) + (question.length > 100 ? '...' : ''),
-						timestamp: new Date().toISOString()
-					});
-					
-					const result = await queryRAGEngine(question);
-					
-					console.log('💬 [AGENT] RAG tool execution completed:', {
-						hasAnswer: !!result.answer,
-						answerLength: result.answer?.length || 0,
-						citationsCount: result.citations?.length || 0,
-						isError: !!result.error,
-						timestamp: new Date().toISOString()
-					});
-					
-					return result;
-				},
+				console.log('🤖 [AGENT] Agent is calling RAG tool with question:', {
+				question: question.substring(0, 100) + (question.length > 100 ? '...' : ''),
+				timestamp: new Date().toISOString()
+				});
+				
+				const result = await queryRAGEngine(question);
+				
+				console.log('💬 [AGENT] RAG tool execution completed:', {
+				hasAnswer: !!result.answer,
+				answerLength: result.answer?.length || 0,
+				citationsCount: result.citations?.length || 0,
+				isError: !!result.error,
+				timestamp: new Date().toISOString()
+				});
+				
+				return result;
+					},
 			}),
 		},
 	});
