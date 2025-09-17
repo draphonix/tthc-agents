@@ -24,11 +24,25 @@ export interface AssessmentResultsData {
   };
 }
 
+export type DocumentExtractionFields = Record<string, string | Array<{ key: string; value: string }>>;
+
+export interface DocumentExtractionData {
+  documentId: string;
+  fileName: string;
+  rawText: string;
+  extractedFields?: DocumentExtractionFields;
+  documentType?: string;
+  confidence?: number;
+  uploadedAt: string;
+  source: "chat-panel" | "artifact";
+}
+
 export interface DocumentUploadState {
   files: File[];
   isUploading: boolean;
   error: string | null;
   messages: any[]; // Using any for now, could be typed more specifically
+  extraction?: DocumentExtractionData;
 }
 
 export interface DocumentSubmissionData {

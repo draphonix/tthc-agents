@@ -3,7 +3,6 @@
  */
 
 import { z } from 'zod';
-import { DocumentExtractionSchema } from './convert-to-text';
 
 // System prompt for document extraction
 export const extractionSystemPrompt = `You are a specialized birth registration document extraction assistant with advanced vision capabilities. You can process both text documents and images to extract information relevant to Vietnamese birth registration.
@@ -71,97 +70,6 @@ Return ONLY valid JSON that matches this schema:
 If any field is not available in the document, omit it from the JSON object rather than using null or empty values.
 
 Important: Do not include any explanations, apologies, or additional text outside of the JSON structure.`;
-
-// Tool definition for displaying extraction results
-export const displayExtractionTool = {
-  description: 'Render extracted document information in a structured format',
-  parameters: DocumentExtractionSchema,
-  generate: async function* (data: z.infer<typeof DocumentExtractionSchema>) {
-    // Initial placeholder
-    yield {
-      type: 'text',
-      content: 'Processing document extraction...'
-    };
-    
-    // Return the structured extraction component
-    const resultParts = [];
-    
-    if (data.document_type) {
-      resultParts.push({
-        type: 'text',
-        content: `## Document Type\n\n${data.document_type}`
-      });
-    }
-    
-    // Child information
-    const childInfo = [];
-    if (data.child_name) childInfo.push(`**Name**: ${data.child_name}`);
-    if (data.child_dob) childInfo.push(`**Date of Birth**: ${data.child_dob}`);
-    if (data.child_gender) childInfo.push(`**Gender**: ${data.child_gender}`);
-    if (data.birth_place) childInfo.push(`**Place of Birth**: ${data.birth_place}`);
-    
-    if (childInfo.length > 0) {
-      resultParts.push({
-        type: 'text',
-        content: `## Child Information\n\n${childInfo.join('\n')}`
-      });
-    }
-    
-    // Father information
-    const fatherInfo = [];
-    if (data.father_name) fatherInfo.push(`**Name**: ${data.father_name}`);
-    if (data.father_dob) fatherInfo.push(`**Date of Birth**: ${data.father_dob}`);
-    if (data.father_nationality) fatherInfo.push(`**Nationality**: ${data.father_nationality}`);
-    if (data.father_id) fatherInfo.push(`**ID Number**: ${data.father_id}`);
-    
-    if (fatherInfo.length > 0) {
-      resultParts.push({
-        type: 'text',
-        content: `## Father Information\n\n${fatherInfo.join('\n')}`
-      });
-    }
-    
-    // Mother information
-    const motherInfo = [];
-    if (data.mother_name) motherInfo.push(`**Name**: ${data.mother_name}`);
-    if (data.mother_dob) motherInfo.push(`**Date of Birth**: ${data.mother_dob}`);
-    if (data.mother_nationality) motherInfo.push(`**Nationality**: ${data.mother_nationality}`);
-    if (data.mother_id) motherInfo.push(`**ID Number**: ${data.mother_id}`);
-    
-    if (motherInfo.length > 0) {
-      resultParts.push({
-        type: 'text',
-        content: `## Mother Information\n\n${motherInfo.join('\n')}`
-      });
-    }
-    
-    // Additional information
-    const additionalInfo = [];
-    if (data.parents_marital_status) additionalInfo.push(`**Parents' Marital Status**: ${data.parents_marital_status}`);
-    if (data.issue_date) additionalInfo.push(`**Issue Date**: ${data.issue_date}`);
-    if (data.issuing_authority) additionalInfo.push(`**Issuing Authority**: ${data.issuing_authority}`);
-    if (data.document_number) additionalInfo.push(`**Document Number**: ${data.document_number}`);
-    
-    if (additionalInfo.length > 0) {
-      resultParts.push({
-        type: 'text',
-        content: `## Additional Information\n\n${additionalInfo.join('\n')}`
-      });
-    }
-    
-    if (data.key_information && data.key_information.length > 0) {
-      resultParts.push({
-        type: 'text',
-        content: `## Key Information\n\n${data.key_information.map(pair => `**${pair.key}**: ${pair.value}`).join('\n\n')}`
-      });
-    }
-    
-    return {
-      type: 'text',
-      content: resultParts.map(part => part.content).join('\n\n')
-    };
-  },
-};
 
 // Tool definition for requesting document upload
 export const requestDocumentUploadTool = {

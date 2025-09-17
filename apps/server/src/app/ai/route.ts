@@ -1,7 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { streamText, type UIMessage, convertToModelMessages, tool } from "ai";
 import { z } from "zod";
-import { queryRAGEngineStructured, queryRAGEngine } from "../../lib/vertex-rag";
+import { queryRAGEngine } from "../../lib/vertex-rag";
+import { DocumentExtractionPayloadSchema } from "@/lib/schemas/document-extraction";
 
 // Define the schema for assessment answers
 const assessmentAnswersSchema = z.object({
@@ -27,6 +28,17 @@ export async function POST(req: Request) {
 		lastMessage.metadata.type === 'assessmentAnswers' &&
 		'answers' in lastMessage.metadata) {
 		return handleAssessmentMessage(lastMessage.metadata.answers);
+	}
+
+	if (lastMessage?.metadata && typeof lastMessage.metadata === 'object') {
+		const metadata = lastMessage.metadata as Record<string, unknown>;
+		if (metadata.type === 'documentExtractionSingle' && metadata.document) {
+			return handleDocumentExtractionMessage([metadata.document]);
+		}
+
+		if (metadata.type === 'documentExtractionBatch' && Array.isArray(metadata.documents)) {
+			return handleDocumentExtractionMessage(metadata.documents);
+		}
 	}
 
 	const result = streamText({
@@ -233,6 +245,40 @@ Luôn trích dẫn nguồn thông tin khi có thể.`,
 			{ 
 				status: 500,
 				headers: { 'Content-Type': 'application/json' }
+			}
+		);
+	}
+}
+
+async function handleDocumentExtractionMessage(rawDocuments: unknown[]) {
+	try {
+		const documents = z.array(DocumentExtractionPayloadSchema).parse(rawDocuments);
+
+		const summary = documents
+			.map((doc, index) => `Tài liệu ${index + 1}: ${doc.fileName}`)
+			.join("\n");
+
+		const result = streamText({
+			model: google("gemini-2.5-pro"),
+			messages: [
+				{
+					role: "user",
+					content: `Các tài liệu đã được tải lên và trích xuất thành công. Hãy xác nhận với người dùng rằng toàn bộ tài liệu đã được kiểm tra và hợp lệ.\n\n${summary}`,
+				},
+			],
+			system: `Bạn là trợ lý đăng ký khai sinh. Tất cả tài liệu người dùng vừa gửi đều hợp lệ. Hãy phản hồi ngắn gọn bằng tiếng Việt với các yêu cầu sau:\n- Khẳng định tài liệu đã được xác thực ("Tài liệu đã được xác thực" phải xuất hiện).\n- Nêu một vài thông tin quan trọng (nếu available) hoặc cảm ơn người dùng.\n- Gợi ý bước tiếp theo trong quy trình đăng ký khai sinh.\nKhông hỏi thêm thông tin, không yêu cầu tải lại tài liệu.`,
+		});
+
+		return result.toUIMessageStreamResponse();
+	} catch (error) {
+		console.error('Error processing document extraction:', error);
+		return new Response(
+			JSON.stringify({
+				error: 'Đã xảy ra lỗi khi xác nhận tài liệu. Vui lòng thử lại.',
+			}),
+			{
+				status: 500,
+				headers: { 'Content-Type': 'application/json' },
 			}
 		);
 	}

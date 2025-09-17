@@ -11,7 +11,7 @@ import {
 } from '@/components/ai-elements/artifact';
 import { Copy } from "lucide-react";
 import type { AssessmentAnswers } from "@/lib/types";
-import type { AIAssistantArtifact } from "@/lib/types/ai-artifacts";
+import type { AIAssistantArtifact, DocumentExtractionData } from "@/lib/types/ai-artifacts";
 import { AssessmentWizardArtifact } from "@/components/ai/artifacts/AssessmentWizardArtifact";
 import { AssessmentResultsArtifact } from "@/components/ai/artifacts/AssessmentResultsArtifact";
 import { DocumentSubmissionArtifact } from "@/components/ai/artifacts/DocumentSubmissionArtifact";
@@ -20,9 +20,10 @@ interface ArtifactsPanelProps {
   artifacts: AIAssistantArtifact[];
   className?: string;
   onAssessmentComplete?: (answers: AssessmentAnswers) => void;
+  onDocumentExtractionComplete?: (data: DocumentExtractionData) => void;
 }
 
-export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: ArtifactsPanelProps) {
+export function ArtifactsPanel({ artifacts, className, onAssessmentComplete, onDocumentExtractionComplete }: ArtifactsPanelProps) {
   const renderArtifactContent = (artifact: AIAssistantArtifact) => {
     switch (artifact.kind) {
       case "assessment-wizard":
@@ -30,7 +31,12 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete }: A
       case "assessment-results":
         return <AssessmentResultsArtifact artifact={artifact} />;
       case "document-submission":
-        return <DocumentSubmissionArtifact artifact={artifact} />;
+        return (
+          <DocumentSubmissionArtifact
+            artifact={artifact}
+            onDocumentExtractionComplete={onDocumentExtractionComplete}
+          />
+        );
       default:
         return <div>Unknown artifact type: {artifact.kind}</div>;
     }

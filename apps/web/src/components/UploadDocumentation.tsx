@@ -2,28 +2,28 @@
 
 import { useState, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { useChat } from "@ai-sdk/react";
-import { TextStreamChatTransport } from "ai";
 import { Upload, FileText, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Response } from "@/components/response";
-import {
-  validateFile,
-  formatFileSize,
-  isFileTypeAllowed,
-  isFileSizeAllowed,
-  type AllowedFileType
-} from "@/lib/file-utils";
+import { validateFile, formatFileSize } from "@/lib/file-utils";
+import type {
+  DocumentExtractionData,
+  DocumentExtractionFields
+} from "@/lib/types/ai-artifacts";
+import { DocumentExtractionFieldsSchema } from "@/lib/schemas/document-extraction";
 
 interface UploadDocumentationProps {
-  onUploadComplete?: (data: any) => void;
+  onUploadComplete?: (data: DocumentExtractionData) => void;
   className?: string;
   reason?: string;
   isInChat?: boolean;
   collapsed?: boolean;
   onCollapseChange?: (collapsed: boolean) => void;
   documentName?: string;
+  documentId?: string;
+  source?: "chat-panel" | "artifact";
+  onExtractionComplete?: (data: DocumentExtractionData) => void;
   
   // New props for external state management
   files?: File[];
@@ -45,6 +45,9 @@ export function UploadDocumentation({
   collapsed = false,
   onCollapseChange,
   documentName,
+  documentId,
+  source = "chat-panel",
+  onExtractionComplete,
   // External state props
   files: externalFiles,
   isUploading: externalIsUploading,
@@ -110,26 +113,6 @@ export function UploadDocumentation({
       setInternalMessages(messages);
     }
   };
-
-  const { messages: chatMessages, setMessages: setChatMessages, sendMessage } = useChat({
-    transport: new TextStreamChatTransport({
-      api: `${process.env.NEXT_PUBLIC_SERVER_URL}/ai/extract`,
-    }),
-    onFinish: (message) => {
-      setCurrentIsUploading(false);
-      if (onUploadComplete) {
-        onUploadComplete(message);
-      }
-      // Auto-collapse after successful upload
-      if (onCollapseChange) {
-        onCollapseChange(true);
-      }
-    },
-    onError: (error) => {
-      setCurrentIsUploading(false);
-      setCurrentError(error.message || "Failed to process document");
-    },
-  });
 
   const onDrop = (acceptedFiles: File[]) => {
     setCurrentError(null);
@@ -206,34 +189,54 @@ export function UploadDocumentation({
       }
       
       // Add a placeholder message to indicate processing started
-      setCurrentMessages([{
-        id: Date.now().toString(),
-        role: "assistant",
-        parts: [{ type: "text", text: "Processing document..." }],
-      }]);
+      setCurrentMessages([buildStreamingMessage("Processing document...")]);
       
       // Since we're using TextStreamChatTransport, we need to manually handle the stream
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      
+      let rawText = "";
+
       if (reader) {
         let result = '';
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value);
+          if (done) {
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
           result += chunk;
-          
+          rawText = result;
+
           // Update the message with the accumulated result
-          setCurrentMessages([{
-            id: Date.now().toString(),
-            role: "assistant",
-            parts: [{ type: "text", text: result }],
-          }]);
+          setCurrentMessages([buildStreamingMessage(result)]);
         }
+        rawText += decoder.decode();
+      } else {
+        rawText = await response.text();
       }
-      
+
+      rawText = rawText.trim();
+      setCurrentMessages([buildCompletedMessage(rawText)]);
+
+      const extraction: DocumentExtractionData = {
+        documentId: documentId ?? file.name,
+        fileName: file.name,
+        rawText,
+        extractedFields: parseExtractionResult(rawText),
+        documentType: detectDocumentType(rawText),
+        confidence: 0.8,
+        uploadedAt: new Date().toISOString(),
+        source,
+      };
+
+      onExtractionComplete?.(extraction);
+      onUploadComplete?.(extraction);
+
+      if (onCollapseChange) {
+        onCollapseChange(true);
+      }
+
       setCurrentIsUploading(false);
       
     } catch (error) {
@@ -415,4 +418,47 @@ export function UploadDocumentation({
       )}
     </div>
   );
+}
+
+function buildStreamingMessage(text: string) {
+  return {
+    id: "extraction-stream",
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
+}
+
+function buildCompletedMessage(text: string) {
+  const content = text.length > 0 ? text : "Không có dữ liệu trích xuất.";
+  return {
+    id: "extraction-result",
+    role: "assistant",
+    parts: [{ type: "text", text: content }],
+  };
+}
+
+function parseExtractionResult(rawText: string): DocumentExtractionFields | undefined {
+  const jsonMatch = rawText.match(/\{[\s\S]*\}$/m);
+  if (!jsonMatch) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return DocumentExtractionFieldsSchema.parse(parsed);
+  } catch (error) {
+    console.warn("Failed to parse extraction JSON", error);
+    return undefined;
+  }
+}
+
+function detectDocumentType(rawText: string): string | undefined {
+  const lowered = rawText.toLowerCase();
+  if (lowered.includes("giay khai sinh") || lowered.includes("birth certificate")) {
+    return "birthCertificate";
+  }
+  if (lowered.includes("marriage certificate") || lowered.includes("đăng ký kết hôn")) {
+    return "marriageCertificate";
+  }
+  return undefined;
 }

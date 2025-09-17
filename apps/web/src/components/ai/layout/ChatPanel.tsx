@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { UploadDocumentation } from "@/components/UploadDocumentation";
 import { useChatSend } from "@/components/ai/chat/ChatContext";
 import type { Document } from "@/lib/types";
+import type { DocumentExtractionData } from "@/lib/types/ai-artifacts";
 import {
   Artifact,
   ArtifactAction,
@@ -22,11 +23,12 @@ import type { UIMessage } from "ai";
 interface ChatPanelProps {
   className?: string;
   messages: UIMessage[];
-  onUploadComplete?: (data: any) => void;
+  onUploadComplete?: (data: DocumentExtractionData) => void;
   onRequestDocumentSubmission?: (documents: Array<{ name: string; nameVn: string; required: boolean } | string>, note?: string) => void;
+  onExtractionComplete?: (data: DocumentExtractionData) => void;
 }
 
-export function ChatPanel({ className, messages, onUploadComplete, onRequestDocumentSubmission }: ChatPanelProps) {
+export function ChatPanel({ className, messages, onUploadComplete, onRequestDocumentSubmission, onExtractionComplete }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const sendMessage = useChatSend();
 
@@ -44,11 +46,7 @@ export function ChatPanel({ className, messages, onUploadComplete, onRequestDocu
     setInput("");
   };
 
-  const handleUploadComplete = (data: any) => {
-    console.log("Upload complete:", data);
-    sendMessage({
-      text: "I've uploaded the document. Please analyze the information and let me know what's needed next."
-    });
+  const handleUploadComplete = (data: DocumentExtractionData) => {
     onUploadComplete?.(data);
   };
 
@@ -103,7 +101,10 @@ export function ChatPanel({ className, messages, onUploadComplete, onRequestDocu
                                 <UploadDocumentation
                                   reason={output.reason}
                                   isInChat={true}
+                                  documentId={`${message.id}-requested-doc`}
+                                  source="chat-panel"
                                   onUploadComplete={handleUploadComplete}
+                                  onExtractionComplete={onExtractionComplete}
                                 />
                               </div>
                             );

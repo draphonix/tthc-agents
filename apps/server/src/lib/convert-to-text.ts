@@ -1,37 +1,4 @@
 /**
- * File conversion utilities for the UploadDocumentation feature
- */
-
-import { z } from 'zod';
-
-// Define the schema for extracted document data
-export const DocumentExtractionSchema = z.object({
-  document_type: z.string().optional(),
-  child_name: z.string().optional(),
-  child_dob: z.string().optional(),
-  child_gender: z.string().optional(),
-  birth_place: z.string().optional(),
-  father_name: z.string().optional(),
-  father_dob: z.string().optional(),
-  father_nationality: z.string().optional(),
-  father_id: z.string().optional(),
-  mother_name: z.string().optional(),
-  mother_dob: z.string().optional(),
-  mother_nationality: z.string().optional(),
-  mother_id: z.string().optional(),
-  parents_marital_status: z.string().optional(),
-  issue_date: z.string().optional(),
-  issuing_authority: z.string().optional(),
-  document_number: z.string().optional(),
-  key_information: z.array(z.object({
-    key: z.string(),
-    value: z.string(),
-  })).optional(),
-});
-
-export type DocumentExtraction = z.infer<typeof DocumentExtractionSchema>;
-
-/**
  * Convert a file to plain text based on its type
  */
 export async function convertToPlainText(file: File): Promise<string> {
