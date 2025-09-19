@@ -7,9 +7,27 @@ import { AIPageLayout } from "@/components/ai/layout/AIPageLayout";
 import { ChatPanel } from "@/components/ai/layout/ChatPanel";
 import { ArtifactsPanel } from "@/components/ai/layout/ArtifactsPanel";
 import { useAssessmentArtifacts } from "@/components/ai/hooks/useAssessmentArtifacts";
-import type { DocumentSubmissionData, DocumentExtractionData } from "@/lib/types/ai-artifacts";
+import type { DocumentSubmissionData, DocumentExtractionData, ValidationResultData } from "@/lib/types/ai-artifacts";
 import { ChatContext } from "@/components/ai/chat/ChatContext";
 import type { AssessmentAnswers } from "@/lib/types";
+
+// Helper function to create validation result artifact
+function createValidationArtifact(
+  addArtifact: (artifact: any) => void,
+  documents: DocumentExtractionData[]
+) {
+  const artifactId = `validation-result-${Date.now()}`;
+  
+  addArtifact({
+    id: artifactId,
+    kind: "validation-result",
+    data: {
+      documentIds: documents.map(d => d.documentId),
+      fileNames: documents.map(d => d.fileName),
+      validatedAt: new Date().toISOString()
+    } satisfies ValidationResultData,
+  });
+}
 
 export default function AIPage() {
   const { artifacts, replaceWizardWithResults, addArtifact } = useAssessmentArtifacts();
@@ -18,6 +36,25 @@ export default function AIPage() {
     transport: new DefaultChatTransport({
       api: `${process.env.NEXT_PUBLIC_SERVER_URL}/ai`,
     }),
+    onFinish: ({ message, messages: updatedMessages }) => {
+      // Check if this was a response to a document validation request
+      // Look at the user message that triggered this AI response
+      const userMessage = updatedMessages[updatedMessages.length - 2]; // Second to last is user message
+      if (userMessage?.metadata && 
+          typeof userMessage.metadata === 'object' && 
+          'type' in userMessage.metadata) {
+        const metadata = userMessage.metadata as Record<string, unknown>;
+        
+        // Handle completion of document validation responses
+        if (metadata.type === 'documentExtractionSingle' && metadata.document) {
+          const documents = [metadata.document as DocumentExtractionData];
+          createValidationArtifact(addArtifact, documents);
+        } else if (metadata.type === 'documentExtractionBatch' && Array.isArray(metadata.documents)) {
+          const documents = metadata.documents as DocumentExtractionData[];
+          createValidationArtifact(addArtifact, documents);
+        }
+      }
+    },
   });
 
   const [pendingDocumentIds, setPendingDocumentIds] = useState<string[]>([]);

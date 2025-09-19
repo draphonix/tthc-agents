@@ -15,6 +15,7 @@ import type { AIAssistantArtifact, DocumentExtractionData } from "@/lib/types/ai
 import { AssessmentWizardArtifact } from "@/components/ai/artifacts/AssessmentWizardArtifact";
 import { AssessmentResultsArtifact } from "@/components/ai/artifacts/AssessmentResultsArtifact";
 import { DocumentSubmissionArtifact } from "@/components/ai/artifacts/DocumentSubmissionArtifact";
+import { ValidationResultArtifact } from "@/components/ai/artifacts/ValidationResultArtifact";
 
 interface ArtifactsPanelProps {
   artifacts: AIAssistantArtifact[];
@@ -37,6 +38,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete, onD
             onDocumentExtractionComplete={onDocumentExtractionComplete}
           />
         );
+      case "validation-result":
+        return <ValidationResultArtifact artifact={artifact} />;
       default:
         return <div>Unknown artifact type: {artifact.kind}</div>;
     }
@@ -50,6 +53,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete, onD
         return "Kết quả đánh giá / Assessment Results";
       case "document-submission":
         return "Nộp tài liệu / Document Submission";
+      case "validation-result":
+        return "Kết quả xác thực / Validation Results";
       default:
         return "AI Assistant Artifact";
     }
@@ -63,6 +68,8 @@ export function ArtifactsPanel({ artifacts, className, onAssessmentComplete, onD
         return "Kết quả phân tích và hướng dẫn tiếp theo";
       case "document-submission":
         return "Danh sách tài liệu cần nộp dựa trên kết quả tra cứu";
+      case "validation-result":
+        return "Tài liệu đã được xác thực thành công";
       default:
         return "AI generated content";
     }
