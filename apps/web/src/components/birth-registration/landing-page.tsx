@@ -5,12 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { scenarios, routingBenefits, complexityColors } from "@/lib/data";
 import type { Scenario } from "@/lib/types";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 interface LandingPageProps {
 	onStartAssessment: () => void;
 }
 
 export function LandingPage({ onStartAssessment }: LandingPageProps) {
+	const router = useRouter();
+
+	const handleStartAssessment = () => {
+		router.push("/ai");
+	};
+
 	return (
 		<div className="animate-fade-in">
 			{/* Vietnam Government Header */}
@@ -48,7 +55,7 @@ export function LandingPage({ onStartAssessment }: LandingPageProps) {
 						<Button 
 							size="lg" 
 							className="vietnam-primary px-8 py-4 text-lg"
-							onClick={onStartAssessment}
+							onClick={handleStartAssessment}
 						>
 							Bắt đầu đánh giá / Start Assessment
 						</Button>

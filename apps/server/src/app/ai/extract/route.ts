@@ -4,7 +4,7 @@ import { convertToPlainText, truncateText, containsImage, extractImageData } fro
 import { extractionSystemPrompt } from "@/lib/extraction-prompt";
 import { z } from "zod";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {

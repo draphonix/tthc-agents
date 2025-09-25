@@ -13,7 +13,7 @@ const assessmentAnswersSchema = z.object({
   father_present: z.string().optional(),
 });
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 
 

@@ -89,7 +89,7 @@ export interface ProcessingState {
 }
 
 export interface ApplicationState {
-	currentView: "landing" | "assessment" | "documents" | "processing" | "tracking" | "completion";
+	currentView: "landing" | "assessment" | "documents" | "processing" | "tracking" | "completion" | "ai";
 	selectedScenario: Scenario | null;
 	assessmentAnswers: AssessmentAnswers;
 	uploadedDocuments: UploadedFile[];

@@ -3,7 +3,7 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 import { queryRAGEngine } from "../../../../lib/vertex-rag";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Define the schema for assessment answers
 const assessmentAnswersSchema = z.object({
