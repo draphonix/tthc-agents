@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const DocumentExtractionFieldsSchema = z.record(
+  z.string(),
   z.union([
     z.string(),
     z.array(
