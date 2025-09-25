@@ -5,7 +5,20 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
-			"outputs": ["dist/**"]
+			"outputs": ["dist/**"],
+			"env": [
+				"GOOGLE_CLOUD_PROJECT",
+				"VERTEX_REGION",
+				"RAG_CORPUS_NAME",
+				"VERTEX_MODEL",
+				"GOOGLE_APPLICATION_CREDENTIALS",
+				"GOOGLE_APPLICATION_CREDENTIALS_JSON",
+				"GOOGLE_GENERATIVE_AI_API_KEY",
+				"DATABASE_URL",
+				"CORS_ORIGIN",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL"
+			]
 		},
 		"lint": {
 			"dependsOn": ["^lint"]

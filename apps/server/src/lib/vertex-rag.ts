@@ -45,8 +45,20 @@ class VertexRAGClient {
       location: config.location,
     };
 
-    // Use service account key if provided
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    // Use service account key from environment variable or file
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+      // Use JSON content from environment variable (for Vercel deployment)
+      try {
+        const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        authOptions.googleAuthOptions = {
+          credentials: credentials
+        };
+      } catch (error) {
+        console.error('Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:', error);
+        throw new Error('Invalid Google Cloud credentials JSON');
+      }
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      // Use file path from environment variable (for local development)
       authOptions.googleAuthOptions = {
         keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS
       };
